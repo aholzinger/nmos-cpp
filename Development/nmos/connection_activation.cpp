@@ -158,7 +158,7 @@ namespace nmos
 
                         // Update an IS-05 sender's /transportfile endpoint
 
-                        if (nmos::types::sender == id_type.second)
+                        if (nmos::types::sender == id_type.second || nmos::types::receiver == id_type.second)
                         {
                             // hm, the matching IS-04 resource's subscription will not have been updated yet, but that probably doesn't matter to this callback?
 
