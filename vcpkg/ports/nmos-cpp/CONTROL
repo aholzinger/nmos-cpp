@@ -1,0 +1,5 @@
+Source: nmos-cpp
+Version: 1.0.0
+Homepage: https://github.com/aholzinger/nmos-cpp
+Description: nmos-cpp is an implementation of the AMWA Networked Media Open Specifications in C++, licensed under the terms of the Apache License 2.0.
+Build-Depends: boost, cpprestsdk, openssl
