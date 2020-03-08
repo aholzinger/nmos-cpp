@@ -5,6 +5,12 @@ if (NOT DEFINED NMOS_CPP_DIR)
     set (NMOS_CPP_DIR ${PROJECT_SOURCE_DIR})
 endif()
 
+if (DEFINED NMOS_CPP_INCLUDE_DIR_PREFIX)
+    set (NMOS_CPP_INCLUDE_DIR_PREFIX "include/${NMOS_CPP_INCLUDE_DIR_PREFIX}")
+else()
+    set (NMOS_CPP_INCLUDE_DIR_PREFIX "include")
+endif()
+
 # detail headers
 
 set(DETAIL_HEADERS
@@ -20,7 +26,7 @@ if(MSVC)
         )
 endif()
 
-install(FILES ${DETAIL_HEADERS} DESTINATION include/detail)
+install(FILES ${DETAIL_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/detail)
 
 # mDNS support library
 
@@ -60,7 +66,7 @@ target_link_libraries(
     )
 
 install(TARGETS mdns_static DESTINATION lib)
-install(FILES ${MDNS_HEADERS} DESTINATION include/mdns)
+install(FILES ${MDNS_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/mdns)
 
 # LLDP support library
 if (BUILD_LLDP)
@@ -97,7 +103,7 @@ if (BUILD_LLDP)
         )
 
     install(TARGETS lldp_static DESTINATION lib)
-    install(FILES ${LLDP_HEADERS} DESTINATION include/lldp)
+    install(FILES ${LLDP_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/lldp)
 endif()
 
 # nmos_is04_schemas library
@@ -561,6 +567,7 @@ set(NMOS_CPP_BST_SOURCES
     )
 set(NMOS_CPP_BST_HEADERS
     ${NMOS_CPP_DIR}/bst/filesystem.h
+    ${NMOS_CPP_DIR}/bst/optional.h
     ${NMOS_CPP_DIR}/bst/regex.h
     ${NMOS_CPP_DIR}/bst/shared_mutex.h
     )
@@ -826,11 +833,11 @@ endif()
 
 install(TARGETS nmos-cpp_static DESTINATION lib)
 
-install(FILES ${NMOS_CPP_BST_HEADERS} DESTINATION include/bst)
-install(FILES ${NMOS_CPP_CPPREST_HEADERS} DESTINATION include/cpprest)
-install(FILES ${NMOS_CPP_CPPREST_DETAILS_HEADERS} DESTINATION include/cpprest/details)
-install(FILES ${NMOS_CPP_NMOS_HEADERS} DESTINATION include/nmos)
-install(FILES ${NMOS_CPP_PPLX_HEADERS} DESTINATION include/pplx)
-install(FILES ${NMOS_CPP_RQL_HEADERS} DESTINATION include/rql)
-install(FILES ${NMOS_CPP_SDP_HEADERS} DESTINATION include/sdp)
-install(FILES ${NMOS_CPP_SLOG_HEADERS} DESTINATION include/slog)
+install(FILES ${NMOS_CPP_BST_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/bst)
+install(FILES ${NMOS_CPP_CPPREST_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/cpprest)
+install(FILES ${NMOS_CPP_CPPREST_DETAILS_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/cpprest/details)
+install(FILES ${NMOS_CPP_NMOS_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/nmos)
+install(FILES ${NMOS_CPP_PPLX_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/pplx)
+install(FILES ${NMOS_CPP_RQL_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/rql)
+install(FILES ${NMOS_CPP_SDP_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/sdp)
+install(FILES ${NMOS_CPP_SLOG_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/slog)
