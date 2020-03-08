@@ -1445,52 +1445,42 @@ namespace nmos
 
                 if (nmos::is_connection_api_permitted_downgrade(*matching_resource, *resource, version))
                 {
-                    if (nmos::fields::master_enable(nmos::fields::endpoint_active(resource->data)))
+                    // also  non-running (master_enable == false) senders that are configured should report their SDP
+                    auto& transportfile = nmos::fields::endpoint_transportfile(resource->data);
+
+                    if (!transportfile.is_null())
                     {
-                        auto& transportfile = nmos::fields::endpoint_transportfile(resource->data);
+                        // The transportfile endpoint data in the resource must have either "data" and "type", or an "href" for the redirect
+                        auto& data = nmos::fields::transportfile_data(transportfile);
 
-                        if (!transportfile.is_null())
+                        if (!data.is_null())
                         {
-                            // The transportfile endpoint data in the resource must have either "data" and "type", or an "href" for the redirect
-                            auto& data = nmos::fields::transportfile_data(transportfile);
+                            slog::log<slog::severities::info>(gate, SLOG_FLF) << "Returning transport file for " << id_type;
 
-                            if (!data.is_null())
+                            // hmm, parsing of the Accept header could be much better and should take account of quality values
+                            const auto accept = req.headers().find(web::http::header_names::accept);
+                            if (req.headers().end() != accept && web::http::details::mime_types::application_json == web::http::details::get_mime_type(accept->second) && U("application/sdp") == nmos::fields::transportfile_type(transportfile))
                             {
-                                slog::log<slog::severities::info>(gate, SLOG_FLF) << "Returning transport file for " << id_type;
-
-                                // hmm, parsing of the Accept header could be much better and should take account of quality values
-                                const auto accept = req.headers().find(web::http::header_names::accept);
-                                if (req.headers().end() != accept && web::http::details::mime_types::application_json == web::http::details::get_mime_type(accept->second) && U("application/sdp") == nmos::fields::transportfile_type(transportfile))
-                                {
-                                    // Experimental extension - SDP as JSON
-                                    set_reply(res, status_codes::OK, sdp::parse_session_description(utility::us2s(data.as_string())));
-                                }
-                                else
-                                {
-                                    // This automatically performs conversion to UTF-8 if required (i.e. on Windows)
-                                    set_reply(res, status_codes::OK, data.as_string(), nmos::fields::transportfile_type(transportfile));
-                                }
-
-                                // "It is strongly recommended that the following caching headers are included via the /transportfile endpoint (or whatever this endpoint redirects to).
-                                // This is important to ensure that connection management clients do not cache the contents of transport files which are liable to change."
-                                // See https://github.com/AMWA-TV/nmos-device-connection-management/blob/v1.0/docs/4.0.%20Behaviour.md#transport-files--caching
-                                res.headers().set_cache_control(U("no-cache"));
+                                // Experimental extension - SDP as JSON
+                                set_reply(res, status_codes::OK, sdp::parse_session_description(utility::us2s(data.as_string())));
                             }
                             else
                             {
-                                slog::log<slog::severities::info>(gate, SLOG_FLF) << "Redirecting to transport file for " << id_type;
-
-                                set_reply(res, status_codes::TemporaryRedirect);
-                                res.headers().add(web::http::header_names::location, nmos::fields::transportfile_href(transportfile));
+                                // This automatically performs conversion to UTF-8 if required (i.e. on Windows)
+                                set_reply(res, status_codes::OK, data.as_string(), nmos::fields::transportfile_type(transportfile));
                             }
+
+                            // "It is strongly recommended that the following caching headers are included via the /transportfile endpoint (or whatever this endpoint redirects to).
+                            // This is important to ensure that connection management clients do not cache the contents of transport files which are liable to change."
+                            // See https://github.com/AMWA-TV/nmos-device-connection-management/blob/v1.0/docs/4.0.%20Behaviour.md#transport-files--caching
+                            res.headers().set_cache_control(U("no-cache"));
                         }
                         else
                         {
-                            slog::log<slog::severities::warning>(gate, SLOG_FLF) << "Transport file requested for " << id_type << " which does not have one";
+                            slog::log<slog::severities::info>(gate, SLOG_FLF) << "Redirecting to transport file for " << id_type;
 
-                            // An HTTP 404 response may be returned if "the transport type does not require a transport file".
-                            // See https://github.com/AMWA-TV/nmos-device-connection-management/blob/v1.1/APIs/ConnectionAPI.raml#L339-L340
-                            set_error_reply(res, status_codes::NotFound, U("Sender does not have a transport file"));
+                            set_reply(res, status_codes::TemporaryRedirect);
+                            res.headers().add(web::http::header_names::location, nmos::fields::transportfile_href(transportfile));
                         }
                     }
                     else
