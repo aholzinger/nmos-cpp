@@ -5,7 +5,9 @@ cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 project(nmos-cpp)
 
 # The default nmos-cpp root directory
-set(NMOS_CPP_DIR ${PROJECT_SOURCE_DIR})
+if (NOT DEFINED NMOS_CPP_DIR)
+    set(NMOS_CPP_DIR ${PROJECT_SOURCE_DIR})
+endif()
 
 # Common setup and dependency checking
 include (${NMOS_CPP_DIR}/cmake/NmosCppCommon.cmake)
