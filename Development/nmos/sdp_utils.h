@@ -59,10 +59,12 @@ namespace nmos
 
         struct connection_data_t
         {
+            utility::string_t base_address;
             uint32_t ttl;
 
             connection_data_t() : ttl() {}
             connection_data_t(uint32_t ttl) : ttl(ttl) {}
+            connection_data_t(const utility::string_t& base_address, uint32_t ttl) : base_address(base_address), ttl(ttl) {}
         } connection_data;
 
         struct timing_t
@@ -84,6 +86,7 @@ namespace nmos
         } group;
 
         sdp::media_type media_type;
+        uint64_t port;
         sdp::protocol protocol;
 
         struct rtpmap_t

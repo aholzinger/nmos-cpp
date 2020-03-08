@@ -893,6 +893,7 @@ namespace nmos
                 // hmm, how to handle multiple connection addresses?
                 const auto address_type = sdp::address_type{ sdp::fields::address_type(session_connection_data) };
                 const auto connection_address = details::parse_connection_address(address_type, sdp::fields::connection_address(session_connection_data));
+                sdp_params.connection_data.base_address = connection_address.base_address;
                 sdp_params.connection_data.ttl = connection_address.ttl;
             }
         }
@@ -967,6 +968,7 @@ namespace nmos
                 // hmm, how to handle multiple connection addresses?
                 const auto address_type = sdp::address_type{ sdp::fields::address_type(media_connection_data.at(0)) };
                 const auto connection_address = details::parse_connection_address(address_type, sdp::fields::connection_address(media_connection_data.at(0)));
+                sdp_params.connection_data.base_address = connection_address.base_address;
                 sdp_params.connection_data.ttl = connection_address.ttl;
             }
         }
@@ -975,6 +977,7 @@ namespace nmos
         // See https://tools.ietf.org/html/rfc4566#section-5.14
         const auto& media = sdp::fields::media(media_description);
         sdp_params.media_type = sdp::media_type{ sdp::fields::media_type(media) };
+        sdp_params.port = uint64_t{ sdp::fields::port(media) };
         sdp_params.protocol = sdp::protocol{ sdp::fields::protocol(media) };
 
         // media description attributes
