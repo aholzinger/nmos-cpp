@@ -135,7 +135,17 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     add_definitions(/D_WIN32_WINNT=0x0600)
 
     # does one of our dependencies result in needing to do this?
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt")
+    if(DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+        if(${CMAKE_MSVC_RUNTIME_LIBRARY} MATCHES "DLL")
+            message(WARNING "Excluding libcmt because CMAKE_MSVC_RUNTIME_LIBRARY = " ${CMAKE_MSVC_RUNTIME_LIBRARY})
+            message(WARNING "Is this really needed?")
+            set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt")
+        endif()
+    else()
+        message(WARNING "Excluding libcmt because CMAKE_MSVC_RUNTIME_LIBRARY is not set")
+        message(WARNING "Is this really needed?")
+        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt")
+    endif()
 
     # enable or disable the LLDP support library (lldp_static)
     set (BUILD_LLDP OFF CACHE BOOL "Build LLDP support library")
