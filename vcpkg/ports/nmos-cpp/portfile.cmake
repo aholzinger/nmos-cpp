@@ -25,8 +25,8 @@ if (DEFINED VCPKG_TARGET_IS_WINDOWS AND ${VCPKG_TARGET_IS_WINDOWS} STREQUAL "1")
         set (NMOS_CPP_OPTIONS_DEBUG "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebug")
         set (NMOS_CPP_OPTIONS_RELEASE "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded")
     else()
-        # not yet tested
         if (${VCPKG_LIBRARY_LINKAGE} STREQUAL "dynamic")
+            set (PLATFORM_LIBS -DPLATFORM_LIBS="Winhttp.lib;httpapi.lib;bcrypt.lib;crypt32.lib")
             set (NMOS_CPP_OPTIONS_DEBUG "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebugDLL")
             set (NMOS_CPP_OPTIONS_RELEASE "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL")
         endif()
@@ -54,6 +54,7 @@ vcpkg_configure_cmake(
         ${NMOS_CPP_BOOST_SYSTEM_USE_UTF8_OPTION}
         ${NMOS_CPP_INCLUDE_DIR_PREFIX_OPTION}
         ${NMOS_CPP_WEBSOCKETPP_INCLUDE_DIR_OPTION}
+        ${PLATFORM_LIBS}
     OPTIONS_DEBUG
         ${NMOS_CPP_OPTIONS_DEBUG}
     OPTIONS_RELEASE
