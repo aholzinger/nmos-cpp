@@ -591,8 +591,8 @@ public:
 #ifndef NO_STD_REGEX
 		attr = sch.find("pattern");
 		if (attr != sch.end()) {
-			patternString_ = attr.value();
-			pattern_ = {true, REGEX_NAMESPACE::regex(attr.value().get<std::string>(),
+			patternString_ = attr.value().get<std::string>();
+			pattern_ = {true, REGEX_NAMESPACE::regex(patternString_,
 			                                         REGEX_NAMESPACE::regex::ECMAScript)};
 			sch.erase(attr);
 		}
