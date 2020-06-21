@@ -706,12 +706,14 @@ namespace nmos
                             // Validate and parse the transport file for this receiver
 
                             const auto transport_file_params = parse_transport_file(*matching_resource, *resource, transport_type_data.first, transport_type_data.second, gate);
+                            if (!transport_file_params.is_null())
+                            {
+                                // Merge the transport file into the transport parameters
 
-                            // Merge the transport file into the transport parameters
+                                auto& transport_params = nmos::fields::transport_params(merged);
 
-                            auto& transport_params = nmos::fields::transport_params(merged);
-
-                            web::json::merge_patch(transport_params, transport_file_params);
+                                web::json::merge_patch(transport_params, transport_file_params);
+                            }
                         }
                         catch (const web::json::json_exception& e)
                         {
@@ -931,7 +933,12 @@ namespace nmos
             throw std::runtime_error("unexpected type: " + utility::us2s(transport_file_type));
         }
 
-        const auto session_description = sdp::parse_session_description(utility::us2s(transport_file_data));
+        auto sdp = utility::us2s(transport_file_data);
+        if (sdp.empty()) {
+            slog::log<slog::severities::info>(gate, SLOG_FLF) << "parse_rtp_transport_file: SDP is empty, returning empty json value!";
+            return web::json::value();
+        }
+        const auto session_description = sdp::parse_session_description(sdp);
         auto sdp_transport_params = nmos::parse_session_description(session_description);
 
         // Validate transport file according to the IS-04 receiver
