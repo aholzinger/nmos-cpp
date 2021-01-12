@@ -24,7 +24,7 @@
 +    if(cmp_ninetyone STREQUAL "NEW")
 +        if(NOT "${CMAKE_MSVC_RUNTIME_LIBRARY}" STREQUAL "")
 +            string(TOUPPER ${CMAKE_MSVC_RUNTIME_LIBRARY} runtime_library)
-+            if(${runtime_library} MATCHES "DLL")
++            if(NOT ${runtime_library} MATCHES "DLL")
 +                set(static_runtime ON)
 +            endif()
          endif()
