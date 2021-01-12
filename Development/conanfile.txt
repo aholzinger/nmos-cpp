@@ -12,3 +12,4 @@ lib, *.dylib* -> ./lib
 
 [options]
 boost:shared=False
+boost:extra_b2_flags="define=BOOST_SYSTEM_USE_UTF8"
