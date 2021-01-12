@@ -2,6 +2,7 @@
 #define NMOS_LOG_GATE_H
 
 #include <atomic>
+#include <clocale>
 #include <ostream>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/find_format.hpp>
@@ -47,7 +48,11 @@ namespace nmos
         {
         public:
             log_gate(std::ostream& error_log, std::ostream& access_log, nmos::experimental::log_model& model)
-                : error_log(error_log), access_log(access_log), model(model), async_service({ *this }) {}
+                : error_log(error_log), access_log(access_log), model(model), async_service({ *this }) {
+#if defined(BOOST_SYSTEM_USE_UTF8) && defined(_WIN32)
+                std::setlocale(LC_CTYPE, ".UTF-8");
+#endif
+            }
             virtual ~log_gate() {}
 
             virtual bool pertinent(slog::severity level) const { return model.level <= level; }
