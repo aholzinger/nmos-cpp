@@ -907,6 +907,19 @@ source_group("rql\\Header Files" FILES ${NMOS_CPP_RQL_HEADERS})
 source_group("sdp\\Header Files" FILES ${NMOS_CPP_SDP_HEADERS})
 source_group("slog\\Header Files" FILES ${NMOS_CPP_SLOG_HEADERS})
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    # add bcrypt.lib to PLATFORM_LIBS if it's not yet added
+    if(DEFINED PLATFORM_LIBS AND NOT ${PLATFORM_LIBS} STREQUAL "")
+        string(TOUPPER ${PLATFORM_LIBS} platform_libs_upper)
+        string(FIND ${platform_libs_upper} "BCRYPT.LIB" bcrypt_pos)
+        if(${bcrypt_pos} LESS 0)
+            list(APPEND PLATFORM_LIBS ";Bcrypt.lib")
+        endif()
+    else()
+        set(PLATFORM_LIBS "Bcrypt.lib")
+    endif()
+endif()
+
 target_link_libraries(
     nmos-cpp_static
     mdns_static
