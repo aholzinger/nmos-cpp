@@ -2,6 +2,19 @@ if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
     message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
     file(DOWNLOAD "https://github.com/conan-io/cmake-conan/raw/v0.15/conan.cmake"
                   "${CMAKE_BINARY_DIR}/conan.cmake")
+    message(STATUS "Patching conan.cmake to support detecting correct runtime linkage")
+    set(patch_file ${CMAKE_CURRENT_SOURCE_DIR}/conan/conan.cmake.patch)
+    execute_process(
+      COMMAND patch -p1 --forward --ignore-whitespace
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+      INPUT_FILE "${patch_file}"
+      OUTPUT_VARIABLE output
+      RESULT_VARIABLE result)
+    if (result EQUAL 0)
+        message(STATUS "Patch applied: ${patch_file}")
+    else()
+        message(STATUS "Applying ${patch_file} failed with result \"${result}\"!")
+    endif()
 endif()
 
 include(${CMAKE_BINARY_DIR}/conan.cmake)
