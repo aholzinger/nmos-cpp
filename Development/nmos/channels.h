@@ -32,9 +32,9 @@ namespace nmos
         const channel_symbol Ls{ U("Ls") };
         // Right Surround
         const channel_symbol Rs{ U("Rs") };
-        // Left Surround Sound
+        // Left Side Surround 
         const channel_symbol Lss{ U("Lss") };
-        // Right Surround Sound
+        // Right Side Surround
         const channel_symbol Rss{ U("Rss") };
         // Left Rear Surround
         const channel_symbol Lrs{ U("Lrs") };
@@ -66,6 +66,9 @@ namespace nmos
         const channel_symbol S{ U("S") };
 
         // Numbered Source Channel (001..127)
+        // "due to original regex [in source_audio.json] allowing NSC000, but NSC001-NSC128 possibly
+        // being preferable for consistency with U01-U64", it's OK to use NSC000 and NSC128 also!
+        // see https://github.com/AMWA-TV/nmos-discovery-registration/pull/145
         const channel_symbol NSC(unsigned int channel_number);
 
         // Undefined channel (01..64)

@@ -153,7 +153,9 @@ namespace nmos
             { U("flows"), nmos::types::flow },
             { U("senders"), nmos::types::sender },
             { U("receivers"), nmos::types::receiver },
-            { U("subscriptions"), nmos::types::subscription }
+            { U("subscriptions"), nmos::types::subscription },
+            { U("inputs"), nmos::types::input },
+            { U("outputs"), nmos::types::output }
         };
         return types_from_resourceType.at(resourceType);
     }
@@ -170,7 +172,9 @@ namespace nmos
             { nmos::types::sender, U("senders") },
             { nmos::types::receiver, U("receivers") },
             { nmos::types::subscription, U("subscriptions") },
-            { nmos::types::grain, {} } // subscription websocket grains aren't exposed via the Query API
+            { nmos::types::grain, {} }, // subscription websocket grains aren't exposed via the Query API
+            { nmos::types::input, U("inputs") },
+            { nmos::types::output, U("outputs") }
         };
         return resourceTypes_from_type.at(type);
     }
@@ -370,7 +374,10 @@ namespace nmos
             typedef basic_html_visitor<char> html_visitor;
 
             std::ostringstream html;
-            html << "<html><head><style>" << headers_stylesheet << web::json::experimental::html_stylesheet << "</style></head><body>";
+            html << "<html><head>";
+            html << "<style>" << headers_stylesheet << web::json::experimental::html_stylesheet << "</style>";
+            html << "<script>" << web::json::experimental::html_script << "</script>";
+            html << "</head><body>";
             html << "<div class=\"headers\"><ol>";
             for (const auto& header : res.headers())
             {
@@ -424,7 +431,7 @@ namespace nmos
                 html << "</li>";
             }
             html << "</ol></div><br/>";
-            html << "<div class=\"json\">";
+            html << "<div class=\"json gutter\">";
             web::json::visit(html_visitor(html), nmos::details::extract_json(res, gate).get());
             html << "</div>";
             html << "</body></html>";

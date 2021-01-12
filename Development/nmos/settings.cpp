@@ -1,5 +1,7 @@
 #include "nmos/settings.h"
 
+#include <boost/range/adaptor/filtered.hpp>
+#include <boost/range/algorithm/find_first_of.hpp>
 #include <boost/version.hpp>
 #include "cpprest/host_utils.h"
 #include "cpprest/version.h"
@@ -19,7 +21,7 @@ namespace nmos
                 if (!interface.domain.empty())
                     return interface.domain;
             }
-            return U("local");
+            return U("local.");
         }
 
         // Get default (system) host name as an FQDN (fully qualified domain name)
@@ -32,6 +34,7 @@ namespace nmos
         // if not already present in the specified settings
         void insert_default_settings(settings& settings, bool registry)
         {
+            // note that web::json::insert won't overwrite an existing entry, just like std::map::insert, etc.
             web::json::insert(settings, std::make_pair(nmos::experimental::fields::seed_id, web::json::value::string(nmos::make_id())));
 
             // if the "host_addresses" setting was omitted, add all the interface addresses
@@ -68,8 +71,10 @@ namespace nmos
                 if (registry) web::json::insert(settings, std::make_pair(nmos::fields::system_port, http_port));
                 if (!registry) web::json::insert(settings, std::make_pair(nmos::fields::connection_port, http_port));
                 if (!registry) web::json::insert(settings, std::make_pair(nmos::fields::events_port, http_port));
+                if (!registry) web::json::insert(settings, std::make_pair(nmos::fields::channelmapping_port, http_port));
                 // can't share a port between an http_listener and a websocket_listener, so don't apply this one...
                 //if (!registry) web::json::insert(settings, std::make_pair(nmos::fields::events_ws_port, http_port));
+                if (!registry) web::json::insert(settings, std::make_pair(nmos::experimental::fields::manifest_port, http_port));
                 web::json::insert(settings, std::make_pair(nmos::experimental::fields::settings_port, http_port));
                 web::json::insert(settings, std::make_pair(nmos::experimental::fields::logging_port, http_port));
                 if (registry) web::json::insert(settings, std::make_pair(nmos::experimental::fields::admin_port, http_port));
@@ -105,15 +110,71 @@ namespace nmos
             : details::default_host_name(get_domain(settings));
     }
 
+    namespace experimental
+    {
+        enum href_mode
+        {
+            href_mode_default = 0,
+            href_mode_name = 1,
+            href_mode_addresses = 2,
+            href_mode_both = 3 // name + addresses
+        };
+
+        href_mode get_href_mode(const settings& settings)
+        {
+            const auto mode = href_mode(nmos::experimental::fields::href_mode(settings));
+            // unless a mode is specified, use the host name if secure communications are in use
+            // otherwise, the host address(es)
+            return mode == href_mode_default
+                ? nmos::experimental::fields::client_secure(settings) ? href_mode_name : href_mode_addresses
+                : mode;
+        }
+    }
+
     // Get host name or address to be used to construct response headers (e.g. 'Link' or 'Location')
     // when a request URL is not available
     utility::string_t get_host(const settings& settings)
     {
-        // if secure communications are in use, return a host name
-        // otherwise, the preferred host address
-        return nmos::experimental::fields::client_secure(settings)
+        const auto mode = nmos::experimental::get_href_mode(settings);
+        return 0 != (mode & nmos::experimental::href_mode_name)
             ? get_host_name(settings)
             : nmos::fields::host_address(settings);
+    }
+
+    // Get host name and/or addresses to be used to construct host and URL fields in the data model
+    std::vector<utility::string_t> get_hosts(const settings& settings)
+    {
+        const auto mode = nmos::experimental::get_href_mode(settings);
+        std::vector<utility::string_t> hosts;
+        if (0 != (mode & nmos::experimental::href_mode_name))
+        {
+            hosts.push_back(get_host_name(settings));
+        }
+        if (0 != (mode & nmos::experimental::href_mode_addresses))
+        {
+            const auto at_least_one_host_address = web::json::value_of({ web::json::value::string(nmos::fields::host_address(settings)) });
+            const auto& host_addresses = settings.has_field(nmos::fields::host_addresses) ? nmos::fields::host_addresses(settings) : at_least_one_host_address.as_array();
+            for (const auto& host_address : host_addresses)
+            {
+                hosts.push_back(host_address.as_string());
+            }
+        }
+        return hosts;
+    }
+
+    // Get interfaces corresponding to the host addresses in the settings
+    std::vector<web::hosts::experimental::host_interface> get_host_interfaces(const settings& settings)
+    {
+        // filter network interfaces to those that correspond to the specified host_addresses
+        const auto at_least_one_host_address = web::json::value_of({ web::json::value::string(nmos::fields::host_address(settings)) });
+        const auto& host_addresses = settings.has_field(nmos::fields::host_addresses) ? nmos::fields::host_addresses(settings) : at_least_one_host_address.as_array();
+        return boost::copy_range<std::vector<web::hosts::experimental::host_interface>>(web::hosts::experimental::host_interfaces() | boost::adaptors::filtered([&](const web::hosts::experimental::host_interface& interface)
+        {
+            return interface.addresses.end() != boost::range::find_first_of(interface.addresses, host_addresses, [](const utility::string_t& interface_address, const web::json::value& host_address)
+            {
+                return interface_address == host_address.as_string();
+            });
+        }));
     }
 
     // Get a summary of the build configuration, including versions of dependencies

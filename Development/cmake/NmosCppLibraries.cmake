@@ -5,15 +5,10 @@ if (NOT DEFINED NMOS_CPP_DIR)
     set (NMOS_CPP_DIR ${PROJECT_SOURCE_DIR})
 endif()
 
-if (DEFINED NMOS_CPP_INCLUDE_DIR_PREFIX)
-    set (NMOS_CPP_INCLUDE_DIR_PREFIX "include/${NMOS_CPP_INCLUDE_DIR_PREFIX}")
-else()
-    set (NMOS_CPP_INCLUDE_DIR_PREFIX "include")
-endif()
-
 # detail headers
 
 set(DETAIL_HEADERS
+    ${NMOS_CPP_DIR}/detail/default_init_allocator.h
     ${NMOS_CPP_DIR}/detail/for_each_reversed.h
     ${NMOS_CPP_DIR}/detail/pragma_warnings.h
     ${NMOS_CPP_DIR}/detail/private_access.h
@@ -26,7 +21,7 @@ if(MSVC)
         )
 endif()
 
-install(FILES ${DETAIL_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/detail)
+install(FILES ${DETAIL_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/detail)
 
 # mDNS support library
 
@@ -58,15 +53,15 @@ source_group("mdns\\Header Files" FILES ${MDNS_HEADERS})
 source_group("Source Files" FILES ${BONJOUR_SOURCES})
 source_group("Header Files" FILES ${BONJOUR_HEADERS})
 
-# ensure e.g. target_compile_definitions for cppprestsdk::cpprest are applied when building this target
+# ensure e.g. target_compile_definitions for cppprestsdk are applied when building this target
 target_link_libraries(
     mdns_static
-    cpprestsdk::cpprest
+    ${CPPRESTSDK_TARGET}
     ${BONJOUR_LIB}
     )
 
 install(TARGETS mdns_static DESTINATION lib)
-install(FILES ${MDNS_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/mdns)
+install(FILES ${MDNS_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/mdns)
 
 # LLDP support library
 if (BUILD_LLDP)
@@ -93,7 +88,7 @@ if (BUILD_LLDP)
     # ensure e.g. target_compile_definitions for cppprestsdk::cpprest are applied when building this target
     target_link_libraries(
         lldp_static
-        cpprestsdk::cpprest
+        ${CPPRESTSDK_TARGET}
         ${PCAP_LIB}
         )
 
@@ -103,7 +98,7 @@ if (BUILD_LLDP)
         )
 
     install(TARGETS lldp_static DESTINATION lib)
-    install(FILES ${LLDP_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/lldp)
+    install(FILES ${LLDP_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/lldp)
 endif()
 
 # nmos_is04_schemas library
@@ -470,13 +465,96 @@ target_link_libraries(
 
 install(TARGETS nmos_is05_schemas_static DESTINATION lib)
 
+# nmos_is08_schemas library
+
+set(NMOS_IS08_SCHEMAS_HEADERS
+    ${NMOS_CPP_DIR}/nmos/is08_schemas/is08_schemas.h
+    )
+
+set(NMOS_IS08_V1_0_TAG v1.0.x)
+
+set(NMOS_IS08_V1_0_SCHEMAS_JSON
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/activation-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/activation-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/base-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/error.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/input-base-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/input-caps-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/input-channels-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/input-parent-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/input-properties-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/inputs-outputs-base-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/io-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-activations-activation-get-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-activations-get-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-activations-post-request-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-activations-post-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-active-output-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-active-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-base-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/map-entries-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/output-base-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/output-caps-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/output-channels-response-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/output-properties-schema.json
+    ${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/${NMOS_IS08_V1_0_TAG}/APIs/schemas/output-sourceid-response-schema.json
+    )
+
+set(NMOS_IS08_SCHEMAS_JSON_MATCH "${NMOS_CPP_DIR}/third_party/nmos-audio-channel-mapping/([^/]+)/APIs/schemas/([^;]+)\\.json")
+set(NMOS_IS08_SCHEMAS_SOURCE_REPLACE "${CMAKE_BINARY_DIR}/nmos/is08_schemas/\\1/\\2.cpp")
+string(REGEX REPLACE "${NMOS_IS08_SCHEMAS_JSON_MATCH}(;|$)" "${NMOS_IS08_SCHEMAS_SOURCE_REPLACE}\\3" NMOS_IS08_V1_0_SCHEMAS_SOURCES "${NMOS_IS08_V1_0_SCHEMAS_JSON}")
+
+foreach(JSON ${NMOS_IS08_V1_0_SCHEMAS_JSON})
+    string(REGEX REPLACE "${NMOS_IS08_SCHEMAS_JSON_MATCH}" "${NMOS_IS08_SCHEMAS_SOURCE_REPLACE}" SOURCE "${JSON}")
+    string(REGEX REPLACE "${NMOS_IS08_SCHEMAS_JSON_MATCH}" "\\1" NS "${JSON}")
+    string(REGEX REPLACE "${NMOS_IS08_SCHEMAS_JSON_MATCH}" "\\2" VAR "${JSON}")
+    string(MAKE_C_IDENTIFIER "${NS}" NS)
+    string(MAKE_C_IDENTIFIER "${VAR}" VAR)
+
+    file(WRITE "${SOURCE}.in" "\
+// Auto-generated from: ${JSON}\n\
+\n\
+namespace nmos\n\
+{\n\
+    namespace is08_schemas\n\
+    {\n\
+        namespace ${NS}\n\
+        {\n\
+            const char* ${VAR} = R\"-auto-generated-(")
+
+    file(READ "${JSON}" RAW)
+    file(APPEND "${SOURCE}.in" "${RAW}")
+
+    file(APPEND "${SOURCE}.in" ")-auto-generated-\";\n\
+        }\n\
+    }\n\
+}\n")
+
+    configure_file("${SOURCE}.in" "${SOURCE}" COPYONLY)
+endforeach()
+
+add_library(
+    nmos_is08_schemas_static STATIC
+    ${NMOS_IS08_SCHEMAS_HEADERS}
+    ${NMOS_IS08_V1_0_SCHEMAS_SOURCES}
+    )
+
+source_group("nmos\\is08_schemas\\Header Files" FILES ${NMOS_IS08_SCHEMAS_HEADERS})
+source_group("nmos\\is08_schemas\\${NMOS_IS08_V1_0_TAG}\\Source Files" FILES ${NMOS_IS08_V1_0_SCHEMAS_SOURCES})
+
+target_link_libraries(
+    nmos_is08_schemas_static
+    )
+
+install(TARGETS nmos_is08_schemas_static DESTINATION lib)
+
 # nmos_is09_schemas library
 
 set(NMOS_IS09_SCHEMAS_HEADERS
     ${NMOS_CPP_DIR}/nmos/is09_schemas/is09_schemas.h
     )
 
-set(NMOS_IS09_V1_0_TAG v1.0-dev)
+set(NMOS_IS09_V1_0_TAG v1.0.x)
 
 set(NMOS_IS09_V1_0_SCHEMAS_JSON
     ${NMOS_CPP_DIR}/third_party/nmos-system/${NMOS_IS09_V1_0_TAG}/APIs/schemas/base.json
@@ -615,9 +693,14 @@ set(NMOS_CPP_CPPREST_DETAILS_HEADERS
     )
 
 set(NMOS_CPP_NMOS_SOURCES
+    ${NMOS_CPP_DIR}/nmos/activation_utils.cpp
     ${NMOS_CPP_DIR}/nmos/admin_ui.cpp
     ${NMOS_CPP_DIR}/nmos/api_downgrade.cpp
     ${NMOS_CPP_DIR}/nmos/api_utils.cpp
+    ${NMOS_CPP_DIR}/nmos/capabilities.cpp
+    ${NMOS_CPP_DIR}/nmos/channelmapping_activation.cpp
+    ${NMOS_CPP_DIR}/nmos/channelmapping_api.cpp
+    ${NMOS_CPP_DIR}/nmos/channelmapping_resources.cpp
     ${NMOS_CPP_DIR}/nmos/channels.cpp
     ${NMOS_CPP_DIR}/nmos/client_utils.cpp
     ${NMOS_CPP_DIR}/nmos/components.cpp
@@ -638,6 +721,7 @@ set(NMOS_CPP_NMOS_SOURCES
     ${NMOS_CPP_DIR}/nmos/json_schema.cpp
     ${NMOS_CPP_DIR}/nmos/log_model.cpp
     ${NMOS_CPP_DIR}/nmos/logging_api.cpp
+    ${NMOS_CPP_DIR}/nmos/manifest_api.cpp
     ${NMOS_CPP_DIR}/nmos/mdns.cpp
     ${NMOS_CPP_DIR}/nmos/mdns_api.cpp
     ${NMOS_CPP_DIR}/nmos/node_api.cpp
@@ -652,6 +736,7 @@ set(NMOS_CPP_NMOS_SOURCES
     ${NMOS_CPP_DIR}/nmos/query_api.cpp
     ${NMOS_CPP_DIR}/nmos/query_utils.cpp
     ${NMOS_CPP_DIR}/nmos/query_ws_api.cpp
+    ${NMOS_CPP_DIR}/nmos/rational.cpp
     ${NMOS_CPP_DIR}/nmos/registration_api.cpp
     ${NMOS_CPP_DIR}/nmos/registry_resources.cpp
     ${NMOS_CPP_DIR}/nmos/registry_server.cpp
@@ -659,6 +744,7 @@ set(NMOS_CPP_NMOS_SOURCES
     ${NMOS_CPP_DIR}/nmos/resources.cpp
     ${NMOS_CPP_DIR}/nmos/schemas_api.cpp
     ${NMOS_CPP_DIR}/nmos/sdp_utils.cpp
+    ${NMOS_CPP_DIR}/nmos/server.cpp
     ${NMOS_CPP_DIR}/nmos/server_utils.cpp
     ${NMOS_CPP_DIR}/nmos/settings.cpp
     ${NMOS_CPP_DIR}/nmos/settings_api.cpp
@@ -667,10 +753,15 @@ set(NMOS_CPP_NMOS_SOURCES
     )
 set(NMOS_CPP_NMOS_HEADERS
     ${NMOS_CPP_DIR}/nmos/activation_mode.h
+    ${NMOS_CPP_DIR}/nmos/activation_utils.h
     ${NMOS_CPP_DIR}/nmos/admin_ui.h
     ${NMOS_CPP_DIR}/nmos/api_downgrade.h
     ${NMOS_CPP_DIR}/nmos/api_utils.h
     ${NMOS_CPP_DIR}/nmos/api_version.h
+    ${NMOS_CPP_DIR}/nmos/capabilities.h
+    ${NMOS_CPP_DIR}/nmos/channelmapping_activation.h
+    ${NMOS_CPP_DIR}/nmos/channelmapping_api.h
+    ${NMOS_CPP_DIR}/nmos/channelmapping_resources.h
     ${NMOS_CPP_DIR}/nmos/channels.h
     ${NMOS_CPP_DIR}/nmos/client_utils.h
     ${NMOS_CPP_DIR}/nmos/clock_name.h
@@ -698,6 +789,7 @@ set(NMOS_CPP_NMOS_HEADERS
     ${NMOS_CPP_DIR}/nmos/is04_versions.h
     ${NMOS_CPP_DIR}/nmos/is05_versions.h
     ${NMOS_CPP_DIR}/nmos/is07_versions.h
+    ${NMOS_CPP_DIR}/nmos/is08_versions.h
     ${NMOS_CPP_DIR}/nmos/is09_versions.h
     ${NMOS_CPP_DIR}/nmos/json_fields.h
     ${NMOS_CPP_DIR}/nmos/json_schema.h
@@ -707,8 +799,10 @@ set(NMOS_CPP_NMOS_HEADERS
     ${NMOS_CPP_DIR}/nmos/log_manip.h
     ${NMOS_CPP_DIR}/nmos/log_model.h
     ${NMOS_CPP_DIR}/nmos/logging_api.h
+    ${NMOS_CPP_DIR}/nmos/manifest_api.h
     ${NMOS_CPP_DIR}/nmos/mdns.h
     ${NMOS_CPP_DIR}/nmos/mdns_api.h
+    ${NMOS_CPP_DIR}/nmos/mdns_versions.h
     ${NMOS_CPP_DIR}/nmos/media_type.h
     ${NMOS_CPP_DIR}/nmos/model.h
     ${NMOS_CPP_DIR}/nmos/mutex.h
@@ -816,13 +910,15 @@ source_group("slog\\Header Files" FILES ${NMOS_CPP_SLOG_HEADERS})
 target_link_libraries(
     nmos-cpp_static
     mdns_static
-    cpprestsdk::cpprest
+    ${CPPRESTSDK_TARGET}
     json_schema_validator_static
     nmos_is04_schemas_static
     nmos_is05_schemas_static
+    nmos_is08_schemas_static
     nmos_is09_schemas_static
-    ${PLATFORM_LIBS}
     ${Boost_LIBRARIES}
+    ${OPENSSL_TARGETS}
+    ${PLATFORM_LIBS}
     )
 if (BUILD_LLDP)
     target_link_libraries(
@@ -833,11 +929,11 @@ endif()
 
 install(TARGETS nmos-cpp_static DESTINATION lib)
 
-install(FILES ${NMOS_CPP_BST_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/bst)
-install(FILES ${NMOS_CPP_CPPREST_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/cpprest)
-install(FILES ${NMOS_CPP_CPPREST_DETAILS_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/cpprest/details)
-install(FILES ${NMOS_CPP_NMOS_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/nmos)
-install(FILES ${NMOS_CPP_PPLX_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/pplx)
-install(FILES ${NMOS_CPP_RQL_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/rql)
-install(FILES ${NMOS_CPP_SDP_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/sdp)
-install(FILES ${NMOS_CPP_SLOG_HEADERS} DESTINATION ${NMOS_CPP_INCLUDE_DIR_PREFIX}/slog)
+install(FILES ${NMOS_CPP_BST_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/bst)
+install(FILES ${NMOS_CPP_CPPREST_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/cpprest)
+install(FILES ${NMOS_CPP_CPPREST_DETAILS_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/cpprest/details)
+install(FILES ${NMOS_CPP_NMOS_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/nmos)
+install(FILES ${NMOS_CPP_PPLX_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/pplx)
+install(FILES ${NMOS_CPP_RQL_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/rql)
+install(FILES ${NMOS_CPP_SDP_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/sdp)
+install(FILES ${NMOS_CPP_SLOG_HEADERS} DESTINATION include${NMOS_CPP_INCLUDE_PREFIX}/slog)

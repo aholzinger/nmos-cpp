@@ -3,6 +3,17 @@
 
 #include "cpprest/json_utils.h"
 
+namespace web
+{
+    namespace hosts
+    {
+        namespace experimental
+        {
+            struct host_interface;
+        }
+    }
+}
+
 // Configuration settings and defaults
 namespace nmos
 {
@@ -22,6 +33,12 @@ namespace nmos
     // Get host name or address to be used to construct response headers (e.g. 'Link' or 'Location')
     // when a request URL is not available
     utility::string_t get_host(const settings& settings);
+
+    // Get host name and/or addresses to be used to construct host and URL fields in the data model
+    std::vector<utility::string_t> get_hosts(const settings& settings);
+
+    // Get interfaces corresponding to the host addresses in the settings
+    std::vector<web::hosts::experimental::host_interface> get_host_interfaces(const settings& settings);
 
     // Get a summary of the build configuration, including versions of dependencies
     utility::string_t get_build_settings_info();
@@ -48,7 +65,7 @@ namespace nmos
         // host_name [registry, node]: the fully-qualified host name for which to advertise services, also used to construct response headers and fields in the data model
         const web::json::field_as_string_or host_name{ U("host_name"), U("") }; // when omitted or an empty string, the default is used
 
-        // domain [registry, node]: the domain on which to browse for services or an empty string to use the default domain (specify "local" to explictly select mDNS)
+        // domain [registry, node]: the domain on which to browse for services or an empty string to use the default domain (specify "local." to explictly select mDNS)
         const web::json::field_as_string_or domain{ U("domain"), U("") };
 
         // host_address/host_addresses [registry, node]: IP addresses used to construct response headers (e.g. 'Link' or 'Location'), and host and URL fields in the data model
@@ -63,6 +80,9 @@ namespace nmos
 
         // is07_versions [node]: used to specify the enabled API versions for a version-locked configuration
         const web::json::field_as_array is07_versions{ U("is07_versions") }; // when omitted, nmos::is07_versions::all is used
+
+        // is08_versions [node]: used to specify the enabled API versions for a version-locked configuration
+        const web::json::field_as_array is08_versions{ U("is08_versions") }; // when omitted, nmos::is08_versions::all is used
 
         // is09_versions [registry, node]: used to specify the enabled API versions for a version-locked configuration
         const web::json::field_as_array is09_versions{ U("is09_versions") }; // when omitted, nmos::is09_versions::all is used
@@ -98,6 +118,7 @@ namespace nmos
         const web::json::field_as_integer_or connection_port{ U("connection_port"), 3215 };
         const web::json::field_as_integer_or events_port{ U("events_port"), 3216 };
         const web::json::field_as_integer_or events_ws_port{ U("events_ws_port"), 3217 };
+        const web::json::field_as_integer_or channelmapping_port{ U("channelmapping_port"), 3215 };
         // system_port [node]: used to construct request URLs for the System API (if not discovered via DNS-SD)
         const web::json::field_as_integer_or system_port{ U("system_port"), 10641 };
 
@@ -185,6 +206,7 @@ namespace nmos
             // port numbers [registry, node]: ports to which clients should connect for each API
             // see http_port
 
+            const web::json::field_as_integer_or manifest_port{ U("manifest_port"), 3212 };
             const web::json::field_as_integer_or settings_port{ U("settings_port"), 3209 };
             const web::json::field_as_integer_or logging_port{ U("logging_port"), 5106 };
 
@@ -229,6 +251,9 @@ namespace nmos
 
             // proxy_port [registry, node]: forward proxy port
             const web::json::field_as_integer_or proxy_port{ U("proxy_port"), 8080 };
+
+            // href_mode [registry, node]: whether the host name (1), addresses (2) or both (3) are used to construct response headers, and host and URL fields in the data model
+            const web::json::field_as_integer_or href_mode{ U("href_mode"), 0 }; // when omitted, a default heuristic is used
 
             // client_secure [registry, node]: whether clients should use a secure connection for communication (https and wss)
             // when true, CA root certificates must also be configured

@@ -2,6 +2,7 @@
 
 #include "cpprest/uri_builder.h"
 #include "nmos/api_utils.h" // for nmos::http_scheme
+#include "nmos/mdns_versions.h"
 #include "nmos/node_interfaces.h"
 #include "nmos/node_resource.h"
 
@@ -17,30 +18,28 @@ namespace nmos
             auto resource = nmos::make_node(id, {}, nmos::make_node_interfaces(nmos::experimental::node_interfaces()), settings);
             auto& data = resource.data;
 
-            const auto at_least_one_host_address = value_of({ value::string(nmos::fields::host_address(settings)) });
-            const auto& host_addresses = settings.has_field(nmos::fields::host_addresses) ? nmos::fields::host_addresses(settings) : at_least_one_host_address.as_array();
+            const auto hosts = nmos::get_hosts(settings);
 
             // This is the experimental REST API for DNS Service Discovery (DNS-SD)
 
-            auto mdns_uri = web::uri_builder()
-                .set_scheme(nmos::http_scheme(settings))
-                .set_port(nmos::experimental::fields::mdns_port(settings))
-                .set_path(U("/x-dns-sd/v1.0"));
-            auto type = U("urn:x-dns-sd/v1.0");
+            if (0 <= nmos::experimental::fields::mdns_port(settings))
+            {
+                for (const auto& version : nmos::experimental::mdns_versions::all)
+                {
+                    auto mdns_uri = web::uri_builder()
+                        .set_scheme(nmos::http_scheme(settings))
+                        .set_port(nmos::experimental::fields::mdns_port(settings))
+                        .set_path(U("/x-dns-sd/") + make_api_version(version));
+                    auto type = U("urn:x-dns-sd/") + make_api_version(version);
 
-            if (nmos::experimental::fields::client_secure(settings))
-            {
-                web::json::push_back(data[U("services")], value_of({
-                    { U("href"), mdns_uri.set_host(nmos::get_host(settings)).to_uri().to_string() },
-                    { U("type"), type }
-                }));
-            }
-            else for (const auto& host_address : host_addresses)
-            {
-                web::json::push_back(data[U("services")], value_of({
-                    { U("href"), mdns_uri.set_host(host_address.as_string()).to_uri().to_string() },
-                    { U("type"), type }
-                }));
+                    for (const auto& host : hosts)
+                    {
+                        web::json::push_back(data[U("services")], value_of({
+                            { U("href"), mdns_uri.set_host(host).to_uri().to_string() },
+                            { U("type"), type }
+                        }));
+                    }
+                }
             }
 
             resource.health = health_forever;

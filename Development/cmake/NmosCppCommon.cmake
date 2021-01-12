@@ -26,21 +26,53 @@ enable_testing()
 # location of additional CMake modules
 set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
+    ${CMAKE_BINARY_DIR}
     ${NMOS_CPP_DIR}/third_party/cmake
     ${NMOS_CPP_DIR}/cmake
     )
 
+# location of <PackageName>Config.cmake files created by Conan
+set(CMAKE_PREFIX_PATH
+    ${CMAKE_PREFIX_PATH}
+    ${CMAKE_BINARY_DIR}
+    )
+
+if(${USE_CONAN} AND CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    # use <PackageName>Config.cmake
+    set(FIND_PACKAGE_USE_CONFIG CONFIG)
+endif()
+
 # guard against in-source builds and bad build-type strings
 include(safeguards)
+
+# enable or disable the LLDP support library (lldp_static)
+set (BUILD_LLDP OFF CACHE BOOL "Build LLDP support library")
 
 # find dependencies
 
 # cpprestsdk
-# note: 2.10.15 or higher is recommended but there's no cpprestsdk-configVersion.cmake
-# and CPPREST_VERSION_MAJOR, etc. also aren't exported by cpprestsdk::cpprest
-find_package(cpprestsdk REQUIRED NAMES cpprestsdk cpprest)
-message(STATUS "Found cpprestsdk")
-get_target_property(CPPREST_INCLUDE_DIR cpprestsdk::cpprest INTERFACE_INCLUDE_DIRECTORIES)
+# note: 2.10.16 or higher is recommended (which is the first version with cpprestsdk-configVersion.cmake)
+set (CPPRESTSDK_VERSION_MIN "2.10.11")
+set (CPPRESTSDK_VERSION_CUR "2.10.16")
+find_package(cpprestsdk REQUIRED ${FIND_PACKAGE_USE_CONFIG})
+if (NOT cpprestsdk_VERSION)
+    message(STATUS "Found cpprestsdk unknown version; minimum version: " ${CPPRESTSDK_VERSION_MIN})
+elseif (cpprestsdk_VERSION VERSION_LESS CPPRESTSDK_VERSION_MIN)
+    message(FATAL_ERROR "Found cpprestsdk version " ${cpprestsdk_VERSION} " that is lower than the minimum version: " ${CPPRESTSDK_VERSION_MIN})
+elseif(cpprestsdk_VERSION VERSION_GREATER CPPRESTSDK_VERSION_CUR)
+    message(STATUS "Found cpprestsdk version " ${cpprestsdk_VERSION} " that is higher than the current tested version: " ${CPPRESTSDK_VERSION_CUR})
+else()
+    message(STATUS "Found cpprestsdk version " ${cpprestsdk_VERSION})
+endif()
+if (TARGET cpprestsdk::cpprest)
+    set(CPPRESTSDK_TARGET cpprestsdk::cpprest)
+else()
+    set(CPPRESTSDK_TARGET cpprestsdk::cpprestsdk)
+endif()
+message(STATUS "Using cpprestsdk target ${CPPRESTSDK_TARGET}")
+if (DEFINED CPPREST_INCLUDE_DIR)
+    message(STATUS "Using cpprestsdk include directory at ${CPPREST_INCLUDE_DIR}")
+endif()
 
 # websocketpp
 # note: good idea to use same version as cpprestsdk was built with!
@@ -48,21 +80,39 @@ if(DEFINED WEBSOCKETPP_INCLUDE_DIR)
     message(STATUS "Using configured websocketpp include directory at " ${WEBSOCKETPP_INCLUDE_DIR})
 else()
     set (WEBSOCKETPP_VERSION_MIN "0.5.1")
-    set (WEBSOCKETPP_VERSION_CUR "0.8.1")
-    find_package(websocketpp REQUIRED)
-    if (websocketpp_VERSION VERSION_LESS WEBSOCKETPP_VERSION_MIN)
+    set (WEBSOCKETPP_VERSION_CUR "0.8.2")
+    find_package(websocketpp REQUIRED ${FIND_PACKAGE_USE_CONFIG})
+    if (NOT websocketpp_VERSION)
+        message(STATUS "Found websocketpp unknown version; minimum version: " ${WEBSOCKETPP_VERSION_MIN})
+    elseif (websocketpp_VERSION VERSION_LESS WEBSOCKETPP_VERSION_MIN)
         message(FATAL_ERROR "Found websocketpp version " ${websocketpp_VERSION} " that is lower than the minimum version: " ${WEBSOCKETPP_VERSION_MIN})
     elseif(websocketpp_VERSION VERSION_GREATER WEBSOCKETPP_VERSION_CUR)
         message(STATUS "Found websocketpp version " ${websocketpp_VERSION} " that is higher than the current tested version: " ${WEBSOCKETPP_VERSION_CUR})
     else()
         message(STATUS "Found websocketpp version " ${websocketpp_VERSION})
     endif()
-    message(STATUS "Using websocketpp include directory at " ${WEBSOCKETPP_INCLUDE_DIR})
+    if (DEFINED WEBSOCKETPP_INCLUDE_DIR)
+        message(STATUS "Using websocketpp include directory at ${WEBSOCKETPP_INCLUDE_DIR}")
+    endif()
 endif()
 
 # boost
 # note: some components are only required for one platform or other
+# so find_package(Boost) is called after adding those components
 list(APPEND FIND_BOOST_COMPONENTS system date_time regex)
+
+# openssl
+# note: good idea to use same version as cpprestsk was built with!
+find_package(OpenSSL REQUIRED ${FIND_PACKAGE_USE_CONFIG})
+if (TARGET OpenSSL::SSL)
+    set(OPENSSL_TARGETS OpenSSL::Crypto OpenSSL::SSL)
+else()
+    set(OPENSSL_TARGETS OpenSSL::OpenSSL)
+endif()
+message(STATUS "Using OpenSSL target(s) ${OPENSSL_TARGETS}")
+if (DEFINED OPENSSL_INCLUDE_DIR)
+    message(STATUS "Using OpenSSL include directory at ${OPENSSL_INCLUDE_DIR}")
+endif()
 
 # platform-specific dependencies
 
@@ -89,9 +139,6 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Darwi
         list(APPEND FIND_BOOST_COMPONENTS filesystem)
     endif()
 
-    # enable or disable the LLDP support library (lldp_static)
-    set (BUILD_LLDP OFF CACHE BOOL "Build LLDP support library")
-
     if(BUILD_LLDP)
         # find libpcap for the LLDP support library (lldp_static)
         set (PCAP_LIB -lpcap)
@@ -106,6 +153,23 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         set (BONJOUR_INCLUDE "$ENV{PROGRAMFILES}/Bonjour SDK/Include" CACHE PATH "Bonjour SDK include directory")
         set (BONJOUR_LIB_DIR "$ENV{PROGRAMFILES}/Bonjour SDK/Lib/x64" CACHE PATH "Bonjour SDK library directory")
         set (BONJOUR_LIB dnssd)
+        # dnssd.lib is built with /MT, so exclude libcmt if we're building nmos-cpp with the dynamically-linked runtime library
+        if(CMAKE_VERSION VERSION_LESS 3.15)
+            foreach(Config ${CMAKE_CONFIGURATION_TYPES})
+                string(TOUPPER ${Config} CONFIG)
+                # default is /MD or /MDd
+                if(NOT("${CMAKE_CXX_FLAGS_${CONFIG}}" MATCHES "/MT"))
+                    message(STATUS "Excluding libcmt for ${Config} because CMAKE_CXX_FLAGS_${CONFIG} is: ${CMAKE_CXX_FLAGS_${CONFIG}}")
+                    set (CMAKE_EXE_LINKER_FLAGS_${CONFIG} "${CMAKE_EXE_LINKER_FLAGS_${CONFIG}} /NODEFAULTLIB:libcmt")
+                endif()
+            endforeach()
+        else()
+            # default is "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+            if((NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY) OR (${CMAKE_MSVC_RUNTIME_LIBRARY} MATCHES "DLL"))
+                message(STATUS "Excluding libcmt because CMAKE_MSVC_RUNTIME_LIBRARY is: ${CMAKE_MSVC_RUNTIME_LIBRARY}")
+                set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt")
+            endif()
+        endif()
     else()
         # note: use the patched files rather than the system installed version
         set (BONJOUR_INCLUDE "${NMOS_CPP_DIR}/third_party/mDNSResponder/mDNSShared")
@@ -134,22 +198,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     #   https://stackoverflow.com/questions/9742003/platform-detection-in-cmake
     add_definitions(/D_WIN32_WINNT=0x0600)
 
-    # does one of our dependencies result in needing to do this?
-    if(DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
-        if(${CMAKE_MSVC_RUNTIME_LIBRARY} MATCHES "DLL")
-            message(WARNING "Excluding libcmt because CMAKE_MSVC_RUNTIME_LIBRARY = " ${CMAKE_MSVC_RUNTIME_LIBRARY})
-            message(WARNING "Is this really needed?")
-            set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt")
-        endif()
-    else()
-        message(WARNING "Excluding libcmt because CMAKE_MSVC_RUNTIME_LIBRARY is not set")
-        message(WARNING "Is this really needed?")
-        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt")
-    endif()
-
-    # enable or disable the LLDP support library (lldp_static)
-    set (BUILD_LLDP OFF CACHE BOOL "Build LLDP support library")
-
     if(BUILD_LLDP)
         # find WinPcap for the LLDP support library (lldp_static)
         set (PCAP_INCLUDE_DIR "${NMOS_CPP_DIR}/third_party/WpdPack/Include" CACHE PATH "WinPcap include directory")
@@ -167,8 +215,22 @@ add_definitions(/DBST_SHARED_MUTEX_BOOST)
 
 # find boost
 # note: 1.57.0 doesn't work due to https://svn.boost.org/trac10/ticket/10754
-find_package(Boost 1.54.0 REQUIRED COMPONENTS ${FIND_BOOST_COMPONENTS})
-set(Boost_VERSION_COMPONENTS "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.${Boost_SUBMINOR_VERSION}")
+find_package(Boost 1.54.0 REQUIRED COMPONENTS ${FIND_BOOST_COMPONENTS} ${FIND_PACKAGE_USE_CONFIG})
+# cope with historical versions of FindBoost.cmake
+if (DEFINED Boost_VERSION_STRING)
+    set(Boost_VERSION_COMPONENTS "${Boost_VERSION_STRING}")
+elseif (DEFINED Boost_VERSION_MAJOR)
+    set(Boost_VERSION_COMPONENTS "${Boost_VERSION_MAJOR}.${Boost_VERSION_MINOR}.${Boost_VERSION_SUBMINOR}")
+elseif (DEFINED Boost_MAJOR_VERSION)
+    set(Boost_VERSION_COMPONENTS "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.${Boost_SUBMINOR_VERSION}")
+elseif (DEFINED Boost_VERSION)
+    set(Boost_VERSION_COMPONENTS "${Boost_VERSION}")
+else()
+    message(FATAL_ERROR "Boost_VERSION_STRING is not defined")
+endif()
+if (DEFINED Boost_INCLUDE_DIRS)
+    message(STATUS "Using Boost include directories at ${Boost_INCLUDE_DIRS}")
+endif()
 
 # set common C++ compiler flags
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
@@ -201,15 +263,18 @@ elseif(MSVC)
 endif()
 
 # location of header files (should be using specific target_include_directories?)
+# though these will be determined from INTERFACE_INCLUDE_DIRECTORIES for targets
+# mentioned in target_link_libraries
 include_directories(
     ${NMOS_CPP_DIR}
     ${NMOS_CPP_DIR}/third_party
-    ${CPPREST_INCLUDE_DIR} # defined above from target cpprestsdk::cpprest of find_package(cpprestsdk)
-    ${WEBSOCKETPP_INCLUDE_DIR} # defined by find_package(websocketpp)
-    ${Boost_INCLUDE_DIRS} # defined by find_package(Boost)
-    ${BONJOUR_INCLUDE} # defined above
-    ${PCAP_INCLUDE_DIR} # defined above
     ${NMOS_CPP_DIR}/third_party/nlohmann
+    ${CPPREST_INCLUDE_DIR}
+    ${WEBSOCKETPP_INCLUDE_DIR}
+    ${Boost_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+    ${BONJOUR_INCLUDE}
+    ${PCAP_INCLUDE_DIR}
     )
 
 # location of libraries

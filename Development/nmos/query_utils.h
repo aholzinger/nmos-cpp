@@ -14,18 +14,20 @@ namespace nmos
         web::json::match_flag_type parse_match_type(const utility::string_t& match_type);
     }
 
-    // Predicate to match resources against a query
+    // Function object to match resources against a query
     struct resource_query
     {
-        typedef const nmos::resource& argument_type;
         typedef bool result_type;
 
         resource_query(const nmos::api_version& version, const utility::string_t& resource_path, const web::json::value& flat_query_params);
 
-        result_type operator()(argument_type resource) const { return (*this)(resource.version, resource.downgrade_version, resource.type, resource.data); }
+        // evaluate the query against the specified resource in the context of the specified resources
+        result_type operator()(const nmos::resource& resource, const nmos::resources& resources) const { return (*this)(resource.version, resource.downgrade_version, resource.type, resource.data, resources); }
+
         web::json::value downgrade(const nmos::resource& resource) const { return downgrade(resource.version, resource.downgrade_version, resource.type, resource.data); }
 
-        result_type operator()(const nmos::api_version& resource_version, const nmos::api_version& resource_downgrade_version, const nmos::type& resource_type, const web::json::value& resource_data) const;
+        result_type operator()(const nmos::api_version& resource_version, const nmos::api_version& resource_downgrade_version, const nmos::type& resource_type, const web::json::value& resource_data, const nmos::resources& resources) const;
+
         web::json::value downgrade(const nmos::api_version& resource_version, const nmos::api_version& resource_downgrade_version, const nmos::type& resource_type, const web::json::value& resource_data) const;
 
         // the Query API version (since a registry being queried may contain resources of more than one version of IS-04 Discovery and Registration)
@@ -96,11 +98,11 @@ namespace nmos
 
     // Cursor-based paging customisation points
 
-    inline nmos::tai extract_cursor(const nmos::resources::index<tags::created>::type&, nmos::resources::index_iterator<tags::created>::type it) { return it->created; }
-    inline nmos::tai extract_cursor(const nmos::resources::index<tags::updated>::type&, nmos::resources::index_iterator<tags::updated>::type it) { return it->updated; }
+    inline nmos::tai extract_cursor(const nmos::resources::index<tags::created>::type&, nmos::resources::index<tags::created>::type::const_iterator it) { return it->created; }
+    inline nmos::tai extract_cursor(const nmos::resources::index<tags::updated>::type&, nmos::resources::index<tags::updated>::type::const_iterator it) { return it->updated; }
 
-    inline nmos::resources::index_iterator<tags::created>::type lower_bound(const nmos::resources::index<tags::created>::type& index, const nmos::tai& timestamp) { return index.lower_bound(timestamp); }
-    inline nmos::resources::index_iterator<tags::updated>::type lower_bound(const nmos::resources::index<tags::updated>::type& index, const nmos::tai& timestamp) { return index.lower_bound(timestamp); }
+    inline nmos::resources::index<tags::created>::type::const_iterator lower_bound(const nmos::resources::index<tags::created>::type& index, const nmos::tai& timestamp) { return index.lower_bound(timestamp); }
+    inline nmos::resources::index<tags::updated>::type::const_iterator lower_bound(const nmos::resources::index<tags::updated>::type& index, const nmos::tai& timestamp) { return index.lower_bound(timestamp); }
 
     // Helpers for constructing /subscriptions websocket grains
     // See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2/docs/4.2.%20Behaviour%20-%20Querying.md

@@ -6,7 +6,6 @@
 #include "nmos/channels.h"
 #include "nmos/clock_name.h"
 #include "nmos/colorspace.h"
-#include "nmos/connection_resources.h" // for nmos::make_connection_api_transportfile
 #include "nmos/components.h"
 #include "nmos/device_type.h"
 #include "nmos/did_sdid.h"
@@ -16,6 +15,7 @@
 #include "nmos/is04_versions.h"
 #include "nmos/is05_versions.h"
 #include "nmos/is07_versions.h"
+#include "nmos/is08_versions.h"
 #include "nmos/media_type.h"
 #include "nmos/resource.h"
 #include "nmos/transfer_characteristic.h"
@@ -38,8 +38,7 @@ namespace nmos
         data[U("senders")] = value_from_elements(senders);
         data[U("receivers")] = value_from_elements(receivers);
 
-        const auto at_least_one_host_address = value_of({ value::string(nmos::fields::host_address(settings)) });
-        const auto& host_addresses = settings.has_field(nmos::fields::host_addresses) ? nmos::fields::host_addresses(settings) : at_least_one_host_address.as_array();
+        const auto hosts = nmos::get_hosts(settings);
 
         if (0 <= nmos::fields::connection_port(settings))
         {
@@ -51,17 +50,10 @@ namespace nmos
                     .set_path(U("/x-nmos/connection/") + make_api_version(version));
                 auto type = U("urn:x-nmos:control:sr-ctrl/") + make_api_version(version);
 
-                if (nmos::experimental::fields::client_secure(settings))
+                for (const auto& host : hosts)
                 {
                     web::json::push_back(data[U("controls")], value_of({
-                        { U("href"), connection_uri.set_host(nmos::get_host(settings)).to_uri().to_string() },
-                        { U("type"), type }
-                    }));
-                }
-                else for (const auto& host_address : host_addresses)
-                {
-                    web::json::push_back(data[U("controls")], value_of({
-                        { U("href"), connection_uri.set_host(host_address.as_string()).to_uri().to_string() },
+                        { U("href"), connection_uri.set_host(host).to_uri().to_string() },
                         { U("type"), type }
                     }));
                 }
@@ -78,20 +70,57 @@ namespace nmos
                     .set_path(U("/x-nmos/events/") + make_api_version(version));
                 auto type = U("urn:x-nmos:control:events/") + make_api_version(version);
 
-                if (nmos::experimental::fields::client_secure(settings))
+                for (const auto& host : hosts)
                 {
                     web::json::push_back(data[U("controls")], value_of({
-                        { U("href"), events_uri.set_host(nmos::get_host(settings)).to_uri().to_string() },
+                        { U("href"), events_uri.set_host(host).to_uri().to_string() },
                         { U("type"), type }
                     }));
                 }
-                else for (const auto& host_address : host_addresses)
+            }
+        }
+
+        if (0 <= nmos::fields::channelmapping_port(settings))
+        {
+            // At the moment, it doesn't seem necessary to enable support multiple API instances via the API selector mechanism
+            // so therefore just a single Channel Mapping API instance is mounted directly at /x-nmos/channelmapping/{version}/
+            // If it becomes necessary, each device could associated with a specific API selector
+            // See https://github.com/AMWA-TV/nmos-audio-channel-mapping/blob/v1.0.x/docs/2.0.%20APIs.md#api-paths
+
+            for (const auto& version : nmos::is08_versions::from_settings(settings))
+            {
+                auto channelmapping_uri = web::uri_builder()
+                    .set_scheme(nmos::http_scheme(settings))
+                    .set_port(nmos::fields::channelmapping_port(settings))
+                    .set_path(U("/x-nmos/channelmapping/") + make_api_version(version));
+                auto type = U("urn:x-nmos:control:cm-ctrl/") + make_api_version(version);
+
+                for (const auto& host : hosts)
                 {
                     web::json::push_back(data[U("controls")], value_of({
-                        { U("href"), events_uri.set_host(host_address.as_string()).to_uri().to_string() },
+                        { U("href"), channelmapping_uri.set_host(host).to_uri().to_string() },
                         { U("type"), type }
                     }));
                 }
+            }
+        }
+
+        if (0 <= nmos::experimental::fields::manifest_port(settings))
+        {
+            // See https://github.com/AMWA-TV/nmos-parameter-registers/blob/master/device-control-types/manifest-base.md
+            // and nmos::experimental::make_manifest_api_manifest
+            auto manifest_uri = web::uri_builder()
+                .set_scheme(nmos::http_scheme(settings))
+                .set_port(nmos::experimental::fields::manifest_port(settings))
+                .set_path(U("/x-manifest/"));
+            auto type = U("urn:x-nmos:control:manifest-base/v1.0");
+
+            for (const auto& host : hosts)
+            {
+                web::json::push_back(data[U("controls")], value_of({
+                    { U("href"), manifest_uri.set_host(host).to_uri().to_string() },
+                    { U("type"), type }
+                }));
             }
         }
 
@@ -445,9 +474,22 @@ namespace nmos
         return result;
     }
 
+    namespace experimental
+    {
+        web::uri make_manifest_api_manifest(const nmos::id& sender_id, const nmos::settings& settings)
+        {
+            return web::uri_builder()
+                .set_scheme(nmos::http_scheme(settings))
+                .set_host(nmos::get_host(settings))
+                .set_port(nmos::experimental::fields::manifest_port(settings))
+                .set_path(U("/x-manifest/senders/") + sender_id + U("/manifest"))
+                .to_uri();
+        }
+    }
+
     nmos::resource make_sender(const nmos::id& id, const nmos::id& flow_id, const nmos::id& device_id, const std::vector<utility::string_t>& interfaces, const nmos::settings& settings)
     {
-        return make_sender(id, flow_id, nmos::transports::rtp_mcast, device_id, make_connection_api_transportfile(id, settings).to_string(), interfaces, settings);
+        return make_sender(id, flow_id, nmos::transports::rtp_mcast, device_id, experimental::make_manifest_api_manifest(id, settings).to_string(), interfaces, settings);
     }
 
     // See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2/APIs/schemas/receiver_core.json

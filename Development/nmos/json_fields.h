@@ -71,7 +71,7 @@ namespace nmos
         const web::json::field_as_string source_id{ U("source_id") };
         const web::json::field_as_value grain_rate{ U("grain_rate") }; // or field<nmos::rational> with a bit of work!
         const web::json::field_as_integer numerator{ U("numerator") };
-        const web::json::field_as_integer denominator{ U("denominator") };
+        const web::json::field_as_integer_or denominator{ U("denominator"), 1 };
         // flow_video
         const web::json::field_as_integer frame_width{ U("frame_width") };
         const web::json::field_as_integer frame_height{ U("frame_height") };
@@ -99,8 +99,10 @@ namespace nmos
         const web::json::field_as_bool active{ U("active") }; // used in sender subscription; also used in receiver subscription from v1.2
         // receiver_core
         const web::json::field_as_value sender_id{ U("sender_id") }; // used in receiver subscription
+        // receiver_audio, receiver_data, receiver_mux, receiver_video
+        const web::json::field_as_value_or media_types{ U("media_types"), {} }; // array of string; used in receiver caps
         // receiver_data
-        const web::json::field_as_value_or event_types{ U("event_types"), web::json::value::array() }; // used in receiver caps
+        const web::json::field_as_value_or event_types{ U("event_types"), {} }; // array of string; used in receiver caps
 
         // (mostly) for query_api
         const web::json::field_as_bool persist{ U("persist") };
@@ -117,7 +119,7 @@ namespace nmos
         const web::json::field<tai> sync_timestamp{ U("sync_timestamp") };
         const web::json::field_as_string topic{ U("topic") };
 
-        // IS-05 Connection Management
+        // IS-05 Device Connection Management
 
         // for connection_api
         const web::json::field_as_value endpoint_constraints{ U("constraints") }; // array
@@ -199,7 +201,22 @@ namespace nmos
         const web::json::field_as_value_or ext_is_07_source_id{ U("ext_is_07_source_id"), {} }; // string or null
         const web::json::field_as_value_or ext_is_07_rest_api_url{ U("ext_is_07_rest_api_url"), {} }; // string or null
 
-        // IS-09 System
+        // IS-08 Audio Channel Mapping
+
+        // for channelmapping_api
+        const web::json::field_as_string channelmapping_id{ U("channelmapping_id") };
+        const web::json::field_as_value endpoint_io{ U("io") }; // object
+        // also uses endpoint_active and endpoint_staged
+        const web::json::field_as_string activation_id{ U("activation_id") };
+        const web::json::field_as_value map{ U("map") }; // object
+        const web::json::field_as_value action{ U("action") }; // object
+        const web::json::field_as_value routable_inputs{ U("routable_inputs") }; // array or null
+        const web::json::field_as_value input{ U("input") }; // string or null
+        const web::json::field_as_value channel_index{ U("channel_index") }; // integer or null
+        const web::json::field_as_integer block_size{ U("block_size") };
+        const web::json::field_as_bool reordering{ U("reordering") };
+
+        // IS-09 System Parameters
 
         // for system_api
         const web::json::field_as_value is04{ U("is04") };

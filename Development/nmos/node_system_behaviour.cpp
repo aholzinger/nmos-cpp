@@ -31,7 +31,7 @@ namespace nmos
     }
 
     // uses the default DNS-SD implementation
-    // callbacks from this function are called with the model not locked
+    // callbacks from this function are called with the model locked, and may read or write directly to the model
     void node_system_behaviour_thread(nmos::model& model, system_global_handler system_changed, slog::base_gate& gate_)
     {
         nmos::details::omanip_gate gate(gate_, nmos::stash_category(nmos::categories::node_system_behaviour));
@@ -42,7 +42,7 @@ namespace nmos
     }
 
     // uses the specified DNS-SD implementation
-    // callbacks from this function are called with the model not locked
+    // callbacks from this function are called with the model locked, and may read or write directly to the model
     void node_system_behaviour_thread(nmos::model& model, system_global_handler system_changed, mdns::service_discovery& discovery, slog::base_gate& gate_)
     {
         nmos::details::omanip_gate gate(gate_, nmos::stash_category(nmos::categories::node_system_behaviour));
@@ -127,7 +127,7 @@ namespace nmos
     {
         // query DNS Service Discovery for any System API in the specified browse domain, having priority in the specified range
         // otherwise, after timeout or cancellation, returning the fallback system service
-        // see https://github.com/AMWA-TV/nmos-system/blob/v1.0-dev/docs/3.0.%20Discovery.md
+        // see https://github.com/AMWA-TV/nmos-system/blob/v1.0/docs/3.0.%20Discovery.md
         web::json::value discover_system_services(mdns::service_discovery& discovery, const std::string& browse_domain, const std::set<nmos::api_version>& versions, const std::pair<nmos::service_priority, nmos::service_priority>& priorities, const std::set<nmos::service_protocol>& protocols, const web::uri& fallback_service, slog::base_gate& gate, const std::chrono::steady_clock::duration& timeout, const pplx::cancellation_token& token = pplx::cancellation_token::none())
         {
             std::list<web::uri> system_services;
@@ -421,10 +421,10 @@ namespace nmos
             // Synchronous notification that errors have been encountered with all discoverable System API instances
             // hmm, perhaps only if (!shutdown)?
 
-            if (system_changed)
+            if (state.handler)
             {
                 // this callback should not throw exceptions
-                system_changed({}, {});
+                state.handler({}, {});
             }
 
             cancellation_source.cancel();

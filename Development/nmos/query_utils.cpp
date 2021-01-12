@@ -1,12 +1,15 @@
 #include "nmos/query_utils.h"
 
 #include <set>
+#include <boost/algorithm/string/erase.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 #include "cpprest/basic_utils.h"
 #include "nmos/api_downgrade.h"
 #include "nmos/api_utils.h" // for nmos::resourceType_from_type
 #include "nmos/rational.h"
+#include "nmos/sdp_utils.h" // for nmos::details::make_sampling
 #include "nmos/version.h"
 #include "rql/rql.h"
 
@@ -142,6 +145,12 @@ namespace nmos
         {
             return U("the value of the 'paging.since' parameter must be less than or equal to the effective value of the 'paging.until' parameter");
         }
+
+        template <typename T>
+        static inline T istringstreamed(const utility::string_t& value, const T& default_value = {})
+        {
+            T result{ default_value }; std::istringstream is(utility::us2s(value)); is >> result; return result;
+        }
     }
 
     // Extend RQL with some NMOS-specific types
@@ -152,6 +161,9 @@ namespace nmos
         {
             return rql::default_equal_to(lhs, rhs);
         }
+
+        // if either value is null/not found, return indeterminate
+        if (lhs.is_null() || rhs.is_null()) return rql::value_indeterminate;
 
         auto& ltype = (rql::is_typed_value(lhs) ? lhs : rhs).at(U("type")).as_string();
         auto& rtype = (rql::is_typed_value(rhs) ? rhs : lhs).at(U("type")).as_string();
@@ -167,6 +179,18 @@ namespace nmos
             {
                 return parse_version(lvalue.as_string()) == parse_version(rvalue.as_string()) ? rql::value_true : rql::value_false;
             }
+            else if (U("rational") == rtype)
+            {
+                const auto lrat = lvalue.is_string() ? details::istringstreamed<nmos::rational>(lvalue.as_string()) : parse_rational(lvalue);
+                const auto rrat = rvalue.is_string() ? details::istringstreamed<nmos::rational>(rvalue.as_string()) : parse_rational(rvalue);
+                return lrat == rrat ? rql::value_true : rql::value_false;
+            }
+            else if (U("sampling") == rtype)
+            {
+                const auto lsam = lvalue.is_string() ? lvalue.as_string() : details::make_sampling(lvalue.as_array()).name;
+                const auto rsam = rvalue.is_string() ? rvalue.as_string() : details::make_sampling(rvalue.as_array()).name;
+                return lsam == rsam ? rql::value_true : rql::value_false;
+            }
         }
 
         return rql::value_indeterminate;
@@ -178,6 +202,9 @@ namespace nmos
         {
             return rql::default_less(lhs, rhs);
         }
+
+        // if either value is null/not found, return indeterminate
+        if (lhs.is_null() || rhs.is_null()) return rql::value_indeterminate;
 
         auto& ltype = (rql::is_typed_value(lhs) ? lhs : rhs).at(U("type")).as_string();
         auto& rtype = (rql::is_typed_value(rhs) ? rhs : lhs).at(U("type")).as_string();
@@ -193,24 +220,128 @@ namespace nmos
             {
                 return parse_version(lvalue.as_string()) < parse_version(rvalue.as_string()) ? rql::value_true : rql::value_false;
             }
+            else if (U("rational") == rtype)
+            {
+                const auto lrat = lvalue.is_string() ? details::istringstreamed<nmos::rational>(lvalue.as_string()) : parse_rational(lvalue);
+                const auto rrat = rvalue.is_string() ? details::istringstreamed<nmos::rational>(rvalue.as_string()) : parse_rational(rvalue);
+                return lrat < rrat ? rql::value_true : rql::value_false;
+            }
         }
 
         return rql::value_indeterminate;
     }
 
-    bool match_rql(const web::json::value& value, const web::json::value& query)
+    static inline utility::string_t erase_tail_copy(const utility::string_t& input, const utility::string_t& tail)
     {
-        return query.is_null() || rql::evaluator
-        {
-            [&value](web::json::value& results, const web::json::value& key)
-            {
-                return web::json::extract(value.as_object(), results, key.as_string());
-            },
-            rql::default_any_operators(equal_to, less)
-        }(query) == rql::value_true;
+        return boost::algorithm::ends_with(input, tail)
+            ? boost::algorithm::erase_tail_copy(input, (int)tail.size())
+            : input;
     }
 
-    resource_query::result_type resource_query::operator()(const nmos::api_version& resource_version, const nmos::api_version& resource_downgrade_version, const nmos::type& resource_type, const web::json::value& resource_data) const
+    static inline rql::extractor make_extractor(const web::json::value& value)
+    {
+        return [&value](web::json::value& results, const web::json::value& key)
+        {
+            return web::json::extract(value.as_object(), results, key.as_string());
+        };
+    }
+
+    namespace experimental
+    {
+        // Sub-query operators
+        // Form: relation(<relation-name>, <call-operator>) - Filters for objects where the value identified by the specified relation (i.e. a property) satisfies the specified sub-query
+
+        // Array-friendly sub-query operators
+        // Filters for objects as above or where the specified property's value is an array and the value identified by any element of the array satisfies the specified sub-query
+        template <typename ResolveRelation>
+        web::json::value relation_query(const rql::evaluator& eval, const web::json::value& args, ResolveRelation resolve)
+        {
+            const auto relation_name = eval(args.at(0)).as_string();
+            const auto relation_value = eval(args.at(0), true);
+            const auto query = args.at(1);
+
+            const auto& operators = eval.operators;
+            const auto rel = [&resolve, &relation_name, &operators, &query](const web::json::value& relation_value)
+            {
+                // evaluate the call-operator against the specified data
+                return rql::evaluator{ make_extractor(resolve(relation_name, relation_value)), operators }(query);
+            };
+
+            // cf. rql::details::logical_or
+            if (!relation_value.is_array())
+            {
+                return rel(relation_value);
+            }
+            bool indeterminate = false;
+            for (const auto& rv : relation_value.as_array())
+            {
+                auto result = rel(rv);
+                if (!result.is_boolean())
+                {
+                    indeterminate = true;
+                }
+                else if (result.as_bool())
+                {
+                    return rql::value_true;
+                }
+            }
+            return indeterminate ? rql::value_indeterminate : rql::value_false;
+        }
+
+        // Experimental support for the 'rel' operator, in order to allow e.g. matching senders based on their flows' formats
+        // rel(<relation-name>, <call-operator>) - Applies the provided call-operator against the linked data of the provided relation-name
+        web::json::value rel(const nmos::resources& resources, const rql::evaluator& eval, const web::json::value& args)
+        {
+            return relation_query(eval, args, [&resources](const utility::string_t& relation_name, const web::json::value& relation_value)
+            {
+                if (relation_value.is_string())
+                {
+                    // initially support relation-names that are the '<type>_id' properties, such as a sender's flow_id
+                    // and the 'subscription.sender_id' property of receivers (and vice-versa of senders)
+                    // other candidates are more complicated for various reasons...
+                    // for the 'parents' properties of sources and flows, the resource type is also needed
+                    // for 'interface_bindings' and 'clock_name', device_id and node_id are also needed to identify the node resource
+                    // some 'href' properties like the 'manifest_href' of a sender could be interesting
+                    nmos::type relation_type{ erase_tail_copy(relation_name.substr(relation_name.find_last_of(U('.')) + 1), U("_id")) };
+                    nmos::id relation_id{ relation_value.as_string() };
+
+                    auto found = find_resource(resources, { relation_id, relation_type });
+                    if (resources.end() == found) return rql::value_indeterminate;
+
+                    // return the linked value
+                    return found->data;
+                }
+                return web::json::value::object();
+            });
+        }
+
+        // Experimental support for a 'sub' operator, in order to allow e.g. matching on multiple properties of objects in arrays
+        // sub(<property>, <call-operator>) - Applies the provided call-operator against the provided property
+        web::json::value sub(const rql::evaluator& eval, const web::json::value& args)
+        {
+            return relation_query(eval, args, [](const utility::string_t& relation_name, const web::json::value& relation_value)
+            {
+                if (relation_value.is_object())
+                {
+                    // effectively just changes the extractor context to a sub-object
+                    return relation_value;
+                }
+                return web::json::value::object();
+            });
+        }
+    }
+
+    bool match_rql(const web::json::value& value, const web::json::value& query, const nmos::resources& resources)
+    {
+        auto operators = rql::default_any_operators(equal_to, less);
+
+        operators[U("rel")] = std::bind(experimental::rel, std::cref(resources), std::placeholders::_1, std::placeholders::_2);
+        operators[U("sub")] = experimental::sub;
+
+        return query.is_null() || rql::evaluator{ make_extractor(value), operators }(query) == rql::value_true;
+    }
+
+    resource_query::result_type resource_query::operator()(const nmos::api_version& resource_version, const nmos::api_version& resource_downgrade_version, const nmos::type& resource_type, const web::json::value& resource_data, const nmos::resources& resources) const
     {
         // in theory, should be performing match_query against the downgraded resource_data but
         // in practice, I don't think that can make a difference?
@@ -218,7 +349,7 @@ namespace nmos
             && (resource_path.empty() || resource_path == U('/') + nmos::resourceType_from_type(resource_type))
             && nmos::is_permitted_downgrade(resource_version, resource_downgrade_version, resource_type, version, downgrade_version)
             && web::json::match_query(resource_data, basic_query, match_flags)
-            && match_rql(resource_data, rql_query);
+            && match_rql(resource_data, rql_query, resources);
     }
 
     web::json::value resource_query::downgrade(const nmos::api_version& resource_version, const nmos::api_version& resource_downgrade_version, const nmos::type& resource_type, const web::json::value& resource_data) const
@@ -334,7 +465,7 @@ namespace nmos
             {
                 auto& resource = *found;
 
-                if (!match(resource)) continue;
+                if (!match(resource, resources)) continue;
 
                 const auto resource_data = match.downgrade(resource);
                 auto event = details::make_resource_event(resource_path, resource.type, sync ? resource_data : web::json::value::null(), resource_data);
@@ -381,8 +512,8 @@ namespace nmos
             const auto resource_path = nmos::fields::resource_path(subscription.data);
             const resource_query match(subscription.version, resource_path, nmos::fields::params(subscription.data));
 
-            const bool pre_match = match(version, downgrade_version, type, pre);
-            const bool post_match = match(version, downgrade_version, type, post);
+            const bool pre_match = match(version, downgrade_version, type, pre, resources);
+            const bool post_match = match(version, downgrade_version, type, post, resources);
 
             if (!pre_match && !post_match) continue;
 

@@ -156,7 +156,7 @@ namespace nmos
                             if (!connected_id_or_null.is_null()) connected_id = connected_id_or_null.as_string();
                         }, activation_time);
 
-                        // Update an IS-05 sender's /transportfile endpoint
+                        // Update an IS-05 sender's resp. receiver's /transportfile endpoint
 
                         if (nmos::types::sender == id_type.second || nmos::types::receiver == id_type.second)
                         {

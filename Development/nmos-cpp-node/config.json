@@ -2,6 +2,22 @@
 
 // Configuration settings and defaults
 {
+    // Custom settings for the example node implementation
+
+    // how_many: provides for very basic testing of a node with many sub-resources of each type
+    //"how_many" : 7,
+
+    // frame_rate: controls the grain_rate of video, audio and ancillary data sources and flows
+    // and the equivalent parameter constraint on video receivers
+    // the value must be an object like { "numerator": 25, "denominator": 1 }
+    //"frame_rate": { "numerator": 60000, "denominator": 1001 },
+
+    // channel_count: controls the number of channels in audio sources
+    //"channel_count": 8,
+
+    // smpte2022_7: controls whether senders and receivers have one leg (false) or two legs (true, default)
+    //"smpte2022_7": false,
+
     // Configuration settings and defaults for logging
 
     // error_log [registry, node]: filename for the error log or an empty string to write to stderr
@@ -21,7 +37,7 @@
     // host_name [registry, node]: the fully-qualified host name for which to advertise services, also used to construct response headers and fields in the data model
     //"host_name": "", // when omitted or an empty string, the default is used
 
-    // domain [registry, node]: the domain on which to browse for services or an empty string to use the default domain (specify "local" to explictly select mDNS)
+    // domain [registry, node]: the domain on which to browse for services or an empty string to use the default domain (specify "local." to explictly select mDNS)
     //"domain": "",
 
     // host_address/host_addresses [registry, node]: IP addresses used to construct response headers (e.g. 'Link' or 'Location'), and host and URL fields in the data model
@@ -36,6 +52,9 @@
 
     // is07_versions [node]: used to specify the enabled API versions for a version-locked configuration
     //"is07_versions": ["v1.0"],
+
+    // is08_versions [node]: used to specify the enabled API versions for a version-locked configuration
+    //"is08_versions": ["v1.0"],
 
     // is09_versions [registry, node]: used to specify the enabled API versions for a version-locked configuration
     //"is09_versions": ["v1.0"],
@@ -69,6 +88,7 @@
     //"connection_port": 3215,
     //"events_port": 3216,
     //"events_ws_port": 3217,
+    //"channelmapping_port": 3215,
     // system_port [node]: used to construct request URLs for the System API (if not discovered via DNS-SD)
     //"system_port": 10641,
 
@@ -149,6 +169,9 @@
 
     // proxy_port [registry, node]: forward proxy port
     //"proxy_port": 8080,
+
+    // href_mode [registry, node]: whether the host name (1), addresses (2) or both (3) are used to construct response headers, and host and URL fields in the data model
+    //"href_mode": 1,
 
     // client_secure [registry, node]: whether clients should use a secure connection for communication (https and wss)
     // when true, CA root certificates must also be configured

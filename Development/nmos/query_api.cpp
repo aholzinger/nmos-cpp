@@ -1,6 +1,6 @@
 #include "nmos/query_api.h"
 
-#include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/adaptor/filtered.hpp>
 #include "cpprest/json_validator.h"
 #include "cpprest/json_visit.h"
 #include "cpprest/uri_schemes.h"
@@ -343,6 +343,8 @@ namespace nmos
             // Configure the query predicate
 
             const resource_query match(version, U('/') + resourceType, flat_query_params);
+            // const auto pred = [&](const nmos::resource& r) { return match(r, resources); }, or std::bind(std::cref(match), std::placeholders::_1, std::cref(resources)) OK from Boost.Range 1.56.0
+            struct { const resource_query* rq; const nmos::resources* rs; bool operator()(const nmos::resource& r) const { return (*rq)(r, *rs); } } pred{ &match, &resources };
 
             slog::log<slog::severities::more_info>(gate, SLOG_FLF) << "Querying " << resourceType;
 
@@ -354,8 +356,7 @@ namespace nmos
             if (paging.valid())
             {
                 // Get the payload and update the paging parameters
-                struct default_constructible_resource_query_wrapper { const resource_query* impl; bool operator()(const nmos::resource& r) const { return (*impl)(r); } };
-                auto page = paging.page(resources, default_constructible_resource_query_wrapper{ &match }); // std::cref(match) is OK from Boost.Range 1.56.0
+                auto page = paging.page(resources, pred);
 
                 size_t count = 0;
 
@@ -363,15 +364,19 @@ namespace nmos
                 if (experimental::details::is_html_response_preferred(req, web::http::details::mime_types::application_json))
                 {
                     set_reply(res, status_codes::OK,
-                        web::json::serialize(page,
-                            [&count, &match, &version, &resourceType](const nmos::resource& resource) { ++count; return experimental::details::make_query_api_html_response_body(version, nmos::type_from_resourceType(resourceType), match.downgrade(resource)); }),
+                        web::json::serialize_array(page
+                            | boost::adaptors::transformed(
+                                [&count, &match, &version, &resourceType](const nmos::resource& resource) { ++count; return experimental::details::make_query_api_html_response_body(version, nmos::type_from_resourceType(resourceType), match.downgrade(resource)); }
+                            )),
                         web::http::details::mime_types::application_json);
                 }
                 else
                 {
                     set_reply(res, status_codes::OK,
-                        web::json::serialize(page,
-                            [&count, &match](const nmos::resources::value_type& resource) { ++count; return match.downgrade(resource); }),
+                        web::json::serialize_array(page
+                            | boost::adaptors::transformed(
+                                [&count, &match](const nmos::resources::value_type& resource) { ++count; return match.downgrade(resource); }
+                            )),
                         web::http::details::mime_types::application_json);
                 }
 

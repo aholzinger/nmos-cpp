@@ -84,6 +84,8 @@ BST_TEST_CASE(testMdnsAdvertiseAddress)
     // Advertise our APIs
     advertiser.open().wait();
 
+    // hmmm, the Avahi compatibility layer implementations of DNSServiceCreateConnection and DNSServiceRegisterRecord
+    // just return kDNSServiceErr_Unsupported, so this will fail with the Avahi-based implementation right now
     BST_CHECK(advertiser.register_address("test-mdns-advertise-address", "127.0.0.1", {}).get());
 
     BST_REQUIRE(gate.hasLogMessage("Registered address: 127.0.0.1 for hostname: test-mdns-advertise-address"));
@@ -148,22 +150,30 @@ BST_TEST_CASE(testMdnsBrowseAPIs)
     // Now discover the APIs
     mdns::service_discovery browser(gate);
     std::vector<mdns::browse_result> browsed;
-
-    browsed = browser.browse("_sea-lion-test1._tcp").get();
-
-    auto browseResult = std::count_if(browsed.begin(), browsed.end(), [](const mdns::browse_result& br)
+    auto browse_count = [&](const std::string& name)
     {
-        return br.name == "test-mdns-browse-2";
-    });
-    BST_REQUIRE(browseResult >= 1);
+        return std::count_if(browsed.begin(), browsed.end(), [&](const mdns::browse_result& br)
+        {
+            return br.name == name;
+        });
+    };
+
+    int retries = 0;
+    do
+    {
+        browsed = browser.browse("_sea-lion-test1._tcp").get();
+    }
+    while (retries++ < 3 && browse_count("test-mdns-browse-1") == 0 && browse_count("test-mdns-browse-2") == 0);
+
+    BST_CHECK(retries <= 3);
+
+    BST_CHECK(browse_count("test-mdns-browse-1") >= 1);
+
+    BST_CHECK(browse_count("test-mdns-browse-2") >= 1);
 
     browsed = browser.browse("_sea-lion-test2._tcp").get();
 
-    browseResult = std::count_if(browsed.begin(), browsed.end(), [](const mdns::browse_result& br)
-    {
-        return br.name == "test-mdns-browse-3";
-    });
-    BST_REQUIRE(browseResult >= 1);
+    BST_CHECK(browse_count("test-mdns-browse-3") >= 1);
 
     gate.clearLogMessages();
 
@@ -220,10 +230,9 @@ BST_TEST_CASE(testMdnsResolveAPIs)
             ipAddresses.insert(utility::us2s(a));
         }
     }
-    if (ipAddresses.empty())
-    {
-        ipAddresses.insert("127.0.0.1");
-    }
+    // hmm, mdns::service_discovery::resolve can also return the loopback address on some
+    // platforms (macOS) and in some circumstances (no real network interfaces)
+    ipAddresses.insert("127.0.0.1");
 
     // Advertise our APIs
     advertiser.open().wait();
@@ -278,7 +287,15 @@ BST_TEST_CASE(testMdnsResolveAPIs)
         BST_REQUIRE(count == textRecords.size());
     }
 
-    BST_CHECK(ip_addresses == ipAddresses);
+    // hmmm, ideally, all addresses would be returned by mdns::service_discovery::resolve
+    // but that isn't the case with the Avahi-based implementation which doesn't provide
+    // DNSServiceGetAddrInfo and only returns one address from 'mdns4' or 'mdns4_minimal'
+    // for the name-service-switch to return from getaddrinfo
+    BST_REQUIRE(!ip_addresses.empty());
+    for (auto& address : ip_addresses)
+    {
+        BST_CHECK(ipAddresses.find(address) != ipAddresses.end());
+    }
 
     // now update the txt records
     textRecords.pop_back();
@@ -286,7 +303,7 @@ BST_TEST_CASE(testMdnsResolveAPIs)
 
     BST_REQUIRE(advertiser.update_record("test-mdns-resolve-1", "_sea-lion-test1._tcp", {}, textRecords).get());
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
     // Now resolve again and check the txt records
     auto& resolving = browsed[0];
