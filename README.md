@@ -3,17 +3,18 @@
 
 ## Introduction
 
-This repository contains an implementation of the [AMWA Networked Media Open Specifications](https://amwa-tv.github.io/nmos) in C++, [licensed](LICENSE) under the terms of the Apache License 2.0.
+This repository contains an implementation of the [AMWA Networked Media Open Specifications](https://specs.amwa.tv/nmos/) in C++, [licensed](LICENSE) under the terms of the Apache License 2.0.
 
-- [AMWA IS-04 NMOS Discovery and Registration Specification](https://amwa-tv.github.io/nmos-discovery-registration)
-- [AMWA IS-05 NMOS Device Connection Management Specification](https://amwa-tv.github.io/nmos-device-connection-management)
-- [AMWA IS-07 NMOS Event & Tally Specification](https://amwa-tv.github.io/nmos-event-tally)
-- [AMWA IS-08 NMOS Audio Channel Mapping Specification](https://amwa-tv.github.io/nmos-audio-channel-mapping)
-- [AMWA IS-09 NMOS System Parameters Specification](https://amwa-tv.github.io/nmos-system) (originally defined in JT-NM TR-1001-1:2018 Annex A)
-- [AMWA BCP-002-01 NMOS Grouping Recommendations - Natural Grouping](https://amwa-tv.github.io/nmos-grouping)
-- [AMWA BCP-003-01 Secure Communication in NMOS Systems](https://amwa-tv.github.io/nmos-secure-communication)
+- [AMWA IS-04 NMOS Discovery and Registration Specification](https://specs.amwa.tv/is-04/)
+- [AMWA IS-05 NMOS Device Connection Management Specification](https://specs.amwa.tv/is-05/)
+- [AMWA IS-07 NMOS Event & Tally Specification](https://specs.amwa.tv/is-07/)
+- [AMWA IS-08 NMOS Audio Channel Mapping Specification](https://specs.amwa.tv/is-08/)
+- [AMWA IS-09 NMOS System Parameters Specification](https://specs.amwa.tv/is-09/) (originally defined in JT-NM TR-1001-1:2018 Annex A)
+- [AMWA BCP-002-01 NMOS Grouping Recommendations - Natural Grouping](https://specs.amwa.tv/bcp-002-01/)
+- [AMWA BCP-003-01 Secure Communication in NMOS Systems](https://specs.amwa.tv/bcp-003-01/)
+- [AMWA BCP-004-01 NMOS Receiver Capabilities](https://specs.amwa.tv/bcp-004-01/)
 
-For more information about AMWA, NMOS and the Networked Media Incubator, please refer to http://amwa.tv/.
+For more information about AMWA, NMOS and the Networked Media Incubator, please refer to <http://amwa.tv/>.
 
 - The [nmos module](Development/nmos) includes implementations of the NMOS Node, Registration and Query APIs, the NMOS Connection API, and so on.
 - The [nmos-cpp-registry application](Development/nmos-cpp-registry) provides a simple but functional instance of an NMOS Registration & Discovery System (RDS), utilising the nmos module.
@@ -33,7 +34,7 @@ Easy-NMOS is also a great first way to explore the relationship between NMOS ser
 
 The codebase is intended to be portable, and the nmos-cpp [CMake project](Development/CMakeLists.txt) can be built on at least Linux, Windows and macOS.
 
-After setting up the dependencies, follow these [instructions](Documents/Getting-Started.md) to build nmos-cpp on your platform, and run the test suite.
+After setting up the dependencies, follow these [instructions](Documents/Getting-Started.md) to build and install nmos-cpp on your platform, and run the test suite.
 
 Next, try out the registry and node applications in the [tutorial](Documents/Tutorial.md).
 
@@ -105,6 +106,9 @@ The implementation is designed to be extended. Development is ongoing, following
 
 Recent activity on the project (newest first):
 
+- Prepared a basic Conan recipe for building nmos-cpp, in [Sandbox/conan-recipe](Sandbox/conan-recipe)
+- Refactored the CMake build to make it easier to use nmos-cpp from another project, demonstrated by [Sandbox/my-nmos-node](Sandbox/my-nmos-node)
+- Added support for BCP-004-01 Receiver Capabilities
 - Switched CI testing to run the nmos-cpp applications and the AMWA NMOS Testing Tool with secure communication (TLS) enabled, as per BCP-003-01
 - Added support for the IS-08 Channel Mapping API
 - JT-NM Tested 03/20 badge
@@ -130,7 +134,7 @@ Recent activity on the project (newest first):
 - Updates to build instructions and required dependencies
 - Simpler creation/processing of the types of SDP files required to support ST 2110 and ST 2022-7
 - Simpler run-time configuration of the **nmos-cpp-node** and **nmos-cpp-registry** settings
-- Some documentation about the overall design of **nmos-cpp** for developers
+- Some documentation about the overall design of nmos-cpp for developers
 - An implementation of the Connection API
 - A fix for a potential memory leak
 - An SDP parser/generator (to/from a JSON representation)
