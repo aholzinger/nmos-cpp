@@ -958,6 +958,7 @@ namespace nmos
                 // hmm, how to handle multiple connection addresses?
                 const auto address_type = sdp::address_type{ sdp::fields::address_type(session_connection_data) };
                 const auto connection_address = details::parse_connection_address(address_type, sdp::fields::connection_address(session_connection_data));
+                sdp_params.connection_data.base_address = connection_address.base_address;
                 sdp_params.connection_data.ttl = connection_address.ttl;
             }
         }
@@ -1001,9 +1002,9 @@ namespace nmos
                 ts_refclk = sdp::find_name(session_attributes, sdp::attributes::ts_refclk);
                 if (session_attributes.end() == ts_refclk)
                 {
-                    // indicate not found by default-constructed value
-                    return{};
-                }
+                        // indicate not found by default-constructed value
+                        return{};
+                    }
             }
             const auto& value = sdp::fields::value(*ts_refclk);
             sdp::ts_refclk_source clock_source{ sdp::fields::clock_source(value) };
@@ -1034,6 +1035,7 @@ namespace nmos
                 // hmm, how to handle multiple connection addresses?
                 const auto address_type = sdp::address_type{ sdp::fields::address_type(media_connection_data.at(0)) };
                 const auto connection_address = details::parse_connection_address(address_type, sdp::fields::connection_address(media_connection_data.at(0)));
+                sdp_params.connection_data.base_address = connection_address.base_address;
                 sdp_params.connection_data.ttl = connection_address.ttl;
             }
         }
