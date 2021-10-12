@@ -991,7 +991,28 @@ namespace nmos
 
         // ts-refclk attributes
         // See https://tools.ietf.org/html/rfc7273
-        sdp_params.ts_refclk = boost::copy_range<std::vector<sdp_parameters::ts_refclk_t>>(media_descriptions.as_array() | boost::adaptors::transformed([&sdp](const value& media_description) -> sdp_parameters::ts_refclk_t
+        // start with global ones
+        std::vector<sdp_parameters::ts_refclk_t> ts_refclks = boost::copy_range<std::vector<sdp_parameters::ts_refclk_t>>(session_attributes | boost::adaptors::filtered([](const value& attribute)
+        {
+            auto& attribute_name = sdp::fields::name(attribute);
+            return attribute_name == sdp::attributes::ts_refclk;
+        }) | boost::adaptors::transformed([](const value& attribute)
+        {
+            const auto& value = sdp::fields::value(attribute);
+            sdp::ts_refclk_source clock_source{ sdp::fields::clock_source(value) };
+            if (sdp::ts_refclk_sources::ptp == clock_source)
+            {
+                // no ptp-server implies traceable
+                return sdp_parameters::ts_refclk_t::ptp(sdp::ptp_version{ sdp::fields::ptp_version(value) }, sdp::fields::ptp_server(value));
+            }
+            else if (sdp::ts_refclk_sources::local_mac == clock_source)
+            {
+                return sdp_parameters::ts_refclk_t::local_mac(sdp::fields::mac_address(value));
+            }
+            else throw details::sdp_processing_error("unsupported timestamp reference clock source");
+        }));
+        // continue with media local ones
+        sdp_params.ts_refclk = boost::copy_range<std::vector<sdp_parameters::ts_refclk_t>>(media_descriptions.as_array() | boost::adaptors::transformed([&sdp, &ts_refclks](const value& media_description) -> sdp_parameters::ts_refclk_t
         {
             auto& media_attributes = sdp::fields::attributes(media_description).as_array();
             auto ts_refclk = sdp::find_name(media_attributes, sdp::attributes::ts_refclk);
@@ -1002,9 +1023,14 @@ namespace nmos
                 ts_refclk = sdp::find_name(session_attributes, sdp::attributes::ts_refclk);
                 if (session_attributes.end() == ts_refclk)
                 {
+					if (ts_refclks.empty())
+                    {
                         // indicate not found by default-constructed value
                         return{};
                     }
+                    // no media local ts_refclk entry, but we have a global one so use this
+                    return *ts_refclks.begin();
+                }
             }
             const auto& value = sdp::fields::value(*ts_refclk);
             sdp::ts_refclk_source clock_source{ sdp::fields::clock_source(value) };
