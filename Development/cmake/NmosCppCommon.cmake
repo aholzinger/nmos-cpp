@@ -44,6 +44,12 @@ if(NMOS_CPP_USE_VCPKG)
     include(cmake/NmosCppVcpkg.cmake)
 endif()
 
+set(NMOS_CPP_USE_LIBDIR_SUFFIX ON CACHE BOOL "Use a suffix (Debug or Release) for the library directory")
+mark_as_advanced(FORCE NMOS_CPP_USE_LIBDIR_SUFFIX)
+
+set(NMOS_CPP_USE_BINDIR_SUFFIX ON CACHE BOOL "Use a suffix (Debug or Release) for the binary directory")
+mark_as_advanced(FORCE NMOS_CPP_USE_BINDIR_SUFFIX)
+
 include(GNUInstallDirs)
 
 # if both variables aren't empty strings, join them
@@ -52,8 +58,12 @@ string(JOIN "/" NMOS_CPP_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} ${NMOS_C
 set(NMOS_CPP_INSTALL_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
 set(NMOS_CPP_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
 if(WIN32)
-    string(APPEND NMOS_CPP_INSTALL_LIBDIR "/$<IF:$<CONFIG:Debug>,Debug,Release>")
-    string(APPEND NMOS_CPP_INSTALL_BINDIR "/$<IF:$<CONFIG:Debug>,Debug,Release>")
+    if(NMOS_CPP_USE_LIBDIR_SUFFIX)
+        string(APPEND NMOS_CPP_INSTALL_LIBDIR "/$<IF:$<CONFIG:Debug>,Debug,Release>")
+    endif()
+    if(NMOS_CPP_USE_BINDIR_SUFFIX)
+        string(APPEND NMOS_CPP_INSTALL_BINDIR "/$<IF:$<CONFIG:Debug>,Debug,Release>")
+    endif()
 endif()
 
 # enable C++11
