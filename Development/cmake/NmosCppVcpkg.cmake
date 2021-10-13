@@ -8,7 +8,7 @@ if(DEFINED WIN32) # unfortunately CMAKE_SYSTEM_NAME is not yet set here
     if (NOT DEFINED VCPKG_TARGET_TRIPLET)
         message(FATAL_ERROR "VCPKG_TARGET_TRIPLET not set")
     else()
-        if (${CMAKE_GENERATOR_PLATFORM} STREQUAL "x64")
+        if (${VCPKG_TARGET_TRIPLET} MATCHES "x64*")
             if (${VCPKG_TARGET_TRIPLET} STREQUAL "x64-windows-static")
                 message(STATUS "Linking statically to C/C++ runtime on Windows")
                 if(POLICY CMP0091)
