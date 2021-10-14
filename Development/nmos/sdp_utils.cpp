@@ -1070,6 +1070,7 @@ namespace nmos
         // See https://tools.ietf.org/html/rfc4566#section-5.14
         const auto& media = sdp::fields::media(media_description);
         sdp_params.media_type = sdp::media_type{ sdp::fields::media_type(media) };
+        sdp_params.port = uint64_t{ sdp::fields::port(media) };
         sdp_params.protocol = sdp::protocol{ sdp::fields::protocol(media) };
 
         // media description attributes
