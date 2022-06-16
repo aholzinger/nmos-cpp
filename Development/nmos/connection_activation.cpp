@@ -138,7 +138,7 @@ namespace nmos
                         throw std::logic_error("matching IS-04 resource not found");
                     }
 
-                    nmos::modify_resource(model.connection_resources, id_type.first, [&](nmos::resource& connection_resource)
+                    auto conn_f = [&](nmos::resource& connection_resource)
                     {
                         // Update the IS-05 resource's /active endpoint
 
@@ -165,14 +165,26 @@ namespace nmos
                             // this callback should not throw exceptions, as the active transport parameters will already have been changed and those changes will not be rolled back
                             set_transportfile(*matching_resource, connection_resource, connection_resource.data[nmos::fields::endpoint_transportfile]);
                         }
-                    });
+                        else
+                        {
+                            slog::log<slog::severities::too_much_info>(gate, SLOG_FLF) << "neither sender nor receiver: " << id_type << " (id = " << id_type.first << ")";
+                        }
+                    };
+                    if (!nmos::modify_resource(model.connection_resources, id_type.first, std::move(conn_f)))
+                    {
+                        slog::log<slog::severities::too_much_info>(gate, SLOG_FLF) << "modify_resource for " << id_type << " (id = " << id_type.first << "): connection resource not found";
+                    }
 
                     // Update the IS-04 resource's subscription
 
-                    nmos::modify_resource(model.node_resources, id_type.first, [&activation_time, &active, &connected_id](nmos::resource& resource)
+                    auto node_f = [&activation_time, &active, &connected_id](nmos::resource& resource)
                     {
                         nmos::set_resource_subscription(resource, active, connected_id, activation_time);
-                    });
+                    };
+                    if (!nmos::modify_resource(model.node_resources, id_type.first, std::move(node_f)))
+                    {
+                        slog::log<slog::severities::too_much_info>(gate, SLOG_FLF) << "modify_resource for " << id_type << " (id = " << id_type.first << "): node resource not found";
+                    }
 
                     // Synchronous notification that the active parameters for the specified (IS-04/IS-05) sender/connection_sender or receiver/connection_receiver have changed
                     // and the underlying implementation should make or break this connection according to the values in the /active endpoint
