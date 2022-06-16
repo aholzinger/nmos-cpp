@@ -395,6 +395,8 @@ namespace nmos
         // activation mode, requested_time and activation_time.
         connection_resource_patch_response handle_connection_resource_patch(nmos::node_model& model, nmos::write_lock& lock, const nmos::api_version& version, const std::pair<nmos::id, nmos::type>& id_type, const web::json::value& patch, const nmos::tai& request_time, transport_file_parser parse_transport_file, details::connection_resource_patch_validator validate_merged, slog::base_gate& gate)
         {
+            slog::log<slog::severities::too_much_info>(gate, SLOG_FLF) << "PATCH request for " << id_type << ": " << utility::us2s(patch.serialize());
+
             using namespace web::http::experimental::listener::api_router_using_declarations;
 
             // lock.owns_lock() must be true initially
@@ -777,7 +779,7 @@ namespace nmos
 
         // "The 'receiver_id' key MUST be set to `null` in all cases except where a unicast push-based Sender is configured to transmit to an NMOS Receiver, and the 'active' key is set to 'true'."
         // "The 'sender_id' key MUST be set to `null` in all cases except where the Receiver is currently configured to receive from an NMOS Sender, and the 'active' key is set to 'true'.
-        // See https://github.com/AMWA-TV/nmos-discovery-registration/blob/v1.2.2/docs/4.3.%20Behaviour%20-%20Nodes.md#api-resources
+        // See https://github.com/amwa-tv/nmos-discovery-registration/blob/v1.2.2/docs/4.3.%20Behaviour%20-%20Nodes.md#api-resources
         const auto ci = active && !connected_id.empty() ? value::string(connected_id) : value::null();
 
         // "When the 'active' parameters of a Sender or Receiver are modified, or when a re-activation of the same parameters
