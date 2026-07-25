@@ -148,6 +148,25 @@ Recent activity on the project (newest first):
 We welcome bug reports, feature requests and contributions to the implementation and documentation.
 Please have a look at the simple [Contribution Guidelines](CONTRIBUTING.md).
 
+## How to build
+
+### How to build on an Ubuntu 26.04 based Linux
+
+- Install build_essential: `sudo apt install build-essential`
+- Install libboost1.83-all-dev: `sudo apt install libboost1.83-all-dev`
+- Install libssl-dev: `sudo apt install libssl-dev`
+- Install zlib1g-dev: `sudo apt install zlib1g-dev`
+- Clone https://github.com/aholzinger/websocketpp: `git checkout https://github.com/aholzinger/nmos-cpp.git`
+- Checkout tag/0.8.2.1: `git checkout tags/0.8.2.1` (don't forget to prior move to the websocketpp directory)
+- Configure with CMake, make and install
+- Clone https://github.com/microsoft/cpprestsdk: `git checkout https://github.com/microsoft/cpprestsdk.git`
+- Checkout tag/v2.10.18: `git checkout tags/v2.10.18` (don't forget to prior move to the cpprestsdk directory)
+- Configure with CMake (check that the external websocketpp is used, not the embedded one), make and install
+- Clone https://github.com/aholzinger/nmos-cpp: `git checkout https://github.com/aholzinger/nmos-cpp.git`
+- Configure with CMake setting `NMOS_CPP_USE_CONAN` and `NMOS_CPP_USE_VCPKG` both to `OFF`
+- Build and install
+
+
 Thank you for your interest!
 
 ![This project was formerly known as sea-lion.](Documents/images/sea-lion.png?raw=true)
