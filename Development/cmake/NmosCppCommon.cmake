@@ -66,11 +66,11 @@ if(WIN32)
     endif()
 endif()
 
-# enable C++11
+# enable C++14
 enable_language(CXX)
-set(CMAKE_CXX_STANDARD 11 CACHE STRING "Default value for CXX_STANDARD property of targets")
-if(CMAKE_CXX_STANDARD STREQUAL "98")
-    message(FATAL_ERROR "CMAKE_CXX_STANDARD must be 11 or higher; C++98 is not supported")
+set(CMAKE_CXX_STANDARD 14 CACHE STRING "Default value for CXX_STANDARD property of targets")
+if(CMAKE_CXX_STANDARD STREQUAL "98" OR CMAKE_CXX_STANDARD STREQUAL "11")
+    message(FATAL_ERROR "CMAKE_CXX_STANDARD must be 14 or higher; C++98 is not supported")
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
